@@ -17,7 +17,7 @@ app.secret_key = os.getenv("SECRET_KEY", "Diosesamor")
 print(f"SECRET_KEY: {app.secret_key}")
 
 # Configuración de la base de datos y carpeta de subidas
-DB_PATH = "/data/casos.db"  # Ruta relativa por defecto en Railway
+DB_PATH = "/opt/render/project/src/casos.db"  # Ruta relativa por defecto en Railway
 UPLOAD_FOLDER = os.path.join(os.getcwd(), "static/uploads")  # Ruta relativa dentro del contenedor
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -36,18 +36,18 @@ if not os.path.exists(UPLOAD_FOLDER):
 def init_db():
     try:
         print(f"Intentando acceder a {DB_PATH}")
-        data_dir = os.path.dirname(DB_PATH)  # Esto es "/data"
+        data_dir = os.path.dirname(DB_PATH)  # Esto es "/opt/render/project/src"
         if not os.path.exists(data_dir):
-            print("El directorio /data no existe")
+            print(f"El directorio {data_dir} no existe")
             os.makedirs(data_dir, exist_ok=True)
-            print("Directorio /data creado")
+            print(f"Directorio {data_dir} creado")
         else:
-            print("El directorio /data ya existe")
+            print(f"El directorio {data_dir} ya existe")
 
         # Verificar permisos de escritura
         if not os.access(data_dir, os.W_OK):
-            print("No hay permisos de escritura en /data")
-            raise PermissionError("No se pueden escribir en /data")
+            print(f"No hay permisos de escritura en {data_dir}")
+            raise PermissionError(f"No se pueden escribir en {data_dir}")
 
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -185,7 +185,7 @@ def init_db():
             )
         ''')
 
-        conn.commit()
+          conn.commit()
         print("Base de datos inicializada correctamente.")
     except (sqlite3.Error, PermissionError) as e:
         print(f"Error al inicializar la base de datos: {e}")
