@@ -18,7 +18,7 @@ print(f"SECRET_KEY: {app.secret_key}")
 
 # Configuración de la base de datos y carpeta de subidas
 DB_PATH = "/data/casos.db"
-UPLOAD_FOLDER = os.path.join(os.getcwd(), "static/uploads")  # Ajusta a /data/static/uploads si quieres persistencia
+UPLOAD_FOLDER = os.path.join(os.getcwd(), "static/uploads")
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Credenciales de correo desde variables de entorno
@@ -32,8 +32,8 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
     print(f"Carpeta de subidas creada: {UPLOAD_FOLDER}")
 
-# Definir el usuario autorizado (cámbialo por tu username o user_id real)
-AUTHORIZED_USERNAME = "lelopez"  # Cambia esto por tu username
+# Definir el usuario autorizado
+AUTHORIZED_USERNAME = "lelopez"
 
 def admin_required(f):
     def wrap(*args, **kwargs):
@@ -56,7 +56,6 @@ def admin_required(f):
     wrap.__name__ = f.__name__
     return wrap
 
-# Función para inicializar la base de datos
 def init_db():
     try:
         print(f"Intentando acceder a {DB_PATH}")
@@ -213,7 +212,6 @@ def init_db():
         if 'conn' in locals():
             conn.close()
 
-# Inicializar la base de datos al arrancar la aplicación
 init_db()
 
 print("Configuración inicial completada.")
@@ -536,7 +534,6 @@ def caso(tabla, caso_id):
                 cursor.execute("INSERT INTO alegatos (user_id, tabla, caso_id, rol, alegato, puntos) VALUES (?, ?, ?, ?, ?, ?)",
                                (session['user_id'], tabla, caso_id, rol, alegato, puntos))
                 conn.commit()
-                # Si la solicitud es AJAX, devolver JSON; si no, renderizar plantilla
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return jsonify({'puntos': puntos, 'evaluacion': evaluacion})
                 resultado = evaluacion
@@ -556,6 +553,99 @@ def caso(tabla, caso_id):
         flash(f"Error en la base de datos: {e}")
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'error': str(e)}), 500
+        return redirect(url_for('inicio'))
+
+@app.route('/caso_multi/<tabla>/<int:caso_id>', methods=['GET', 'POST'])
+@login_required
+def caso_multi(tabla, caso_id):
+    user_info = get_user_info(session['user_id'])
+    if not user_info:
+        return redirect(url_for('login'))
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT id, titulo, hechos, pruebas, testigos, defensa, ley, procedimiento FROM {tabla} WHERE id = ?", (caso_id,))
+        caso_data = cursor.fetchone()
+        if not caso_data:
+            conn.close()
+            flash("Caso no encontrado")
+            return redirect(url_for('inicio'))
+        caso = {
+            'id': caso_data[0],
+            'titulo': caso_data[1],
+            'hechos': caso_data[2],
+            'pruebas': json.loads(caso_data[3]) if caso_data[3] else {},
+            'testigos': json.loads(caso_data[4]) if caso_data[4] else {},
+            'defensa': caso_data[5],
+            'ley': caso_data[6],
+            'procedimiento': caso_data[7]
+        }
+
+        # Buscar o crear un juicio para este caso
+        cursor.execute("SELECT id, fiscal_id, defensor_id, fiscal_alegato, defensor_alegato, estado, resultado FROM juicios WHERE tabla = ? AND caso_id = ? AND estado = 'pendiente'", (tabla, caso_id))
+        juicio = cursor.fetchone()
+        juicio_id = None
+        fiscal_id = None
+        defensor_id = None
+        resultado = None
+
+        if juicio:
+            juicio_id, fiscal_id, defensor_id, fiscal_alegato, defensor_alegato, estado, resultado = juicio
+        else:
+            cursor.execute("INSERT INTO juicios (tabla, caso_id) VALUES (?, ?)", (tabla, caso_id))
+            conn.commit()
+            cursor.execute("SELECT id FROM juicios WHERE tabla = ? AND caso_id = ? AND estado = 'pendiente'", (tabla, caso_id))
+            juicio_id = cursor.fetchone()[0]
+
+        rol1 = "Fiscal"
+        rol2 = "Defensor"
+
+        if request.method == 'POST':
+            rol = request.form.get('rol')
+            alegato = request.form.get('argumento')
+            if not rol or not alegato:
+                flash("Faltan datos en el formulario")
+            elif rol not in [rol1, rol2]:
+                flash("Rol inválido")
+            else:
+                if rol == rol1 and not fiscal_id:
+                    cursor.execute("UPDATE juicios SET fiscal_id = ?, fiscal_alegato = ? WHERE id = ?", (session['user_id'], alegato, juicio_id))
+                    fiscal_id = session['user_id']
+                elif rol == rol2 and not defensor_id:
+                    cursor.execute("UPDATE juicios SET defensor_id = ?, defensor_alegato = ? WHERE id = ?", (session['user_id'], alegato, juicio_id))
+                    defensor_id = session['user_id']
+                else:
+                    flash("El rol seleccionado ya está ocupado")
+                    conn.close()
+                    return redirect(url_for('caso_multi', tabla=tabla, caso_id=caso_id))
+
+                conn.commit()
+
+                # Si ambos roles están ocupados, evaluar los alegatos
+                if fiscal_id and defensor_id:
+                    fiscal_puntos, fiscal_evaluacion = evaluar_alegato(fiscal_alegato, caso) if fiscal_alegato else (0, "No presentado")
+                    defensor_puntos, defensor_evaluacion = evaluar_alegato(defensor_alegato, caso) if defensor_alegato else (0, "No presentado")
+                    ganador_id = fiscal_id if fiscal_puntos > defensor_puntos else defensor_id if defensor_puntos > fiscal_puntos else None
+                    resultado = f"Fiscal: {fiscal_puntos}/100\n{evaluacion}\n\nDefensor: {defensor_puntos}/100\n{defensor_evaluacion}\n\nGanador: {'Fiscal' if ganador_id == fiscal_id else 'Defensor' if ganador_id == defensor_id else 'Empate'}"
+                    cursor.execute("UPDATE juicios SET estado = 'completado', fiscal_puntos = ?, defensor_puntos = ?, ganador_id = ?, resultado = ? WHERE id = ?",
+                                   (fiscal_puntos, defensor_puntos, ganador_id, resultado, juicio_id))
+                    cursor.execute("UPDATE usuarios SET points = points + ? WHERE id = ?", (fiscal_puntos, fiscal_id))
+                    cursor.execute("UPDATE usuarios SET points = points + ? WHERE id = ?", (defensor_puntos, defensor_id))
+                    conn.commit()
+
+        conn.close()
+        endpoint_map = {
+            'casos_penales': 'penal',
+            'casos_civil': 'civil',
+            'casos_tierras': 'tierras',
+            'casos_administrativo': 'administrativo',
+            'casos_familia': 'familia',
+            'casos_ninos': 'ninos'
+        }
+        endpoint = endpoint_map.get(tabla, 'inicio')
+        return render_template('casos_multi.html', caso=caso, user_info=user_info, juicio_id=juicio_id, fiscal_id=fiscal_id, defensor_id=defensor_id, rol1=rol1, rol2=rol2, resultado=resultado, endpoint=endpoint, tabla=tabla)
+    except sqlite3.Error as e:
+        flash(f"Error en la base de datos: {e}")
         return redirect(url_for('inicio'))
 
 @app.route('/perfil')
