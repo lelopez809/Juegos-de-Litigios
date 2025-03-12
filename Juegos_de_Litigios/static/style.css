@@ -19,16 +19,42 @@ body {
     transform: translateY(-5px);
 }
 
-.btn-primary {
+/* Estilo genérico para botones (ajustado para no interferir con clases específicas) */
+.btn {
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
     transition: all 0.3s;
-    background-color: #003087;
-    border-color: #003087;
 }
 
-.btn-primary:hover {
+/* Botones primarios (Resolver casos, Ver Caso, Volver) */
+.btn-primary, .btn-outline-secondary {
+    background-color: #003087;
+    border-color: #003087;
+    color: white;
+}
+
+.btn-primary:hover, .btn-outline-secondary:hover {
     transform: scale(1.05);
     background-color: #CE1126;
     border-color: #CE1126;
+    color: white;
+}
+
+/* Botón Multijugador */
+.btn-success {
+    background-color: #FFC107;
+    border-color: #FFC107;
+    color: black;
+}
+
+.btn-success:hover {
+    transform: scale(1.05);
+    background-color: #CE1126;
+    border-color: #CE1126;
+    color: white;
 }
 
 .navbar-dark {
@@ -78,22 +104,6 @@ body {
 
 .form-group {
     margin: 10px 0;
-}
-
-.btn {
-    background-color: #CE1126;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.btn:hover {
-    transform: scale(1.05);
-    background-color: #003087;
-    border-color: #003087;
 }
 
 #resultado {
