@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h1>Agregar Caso</h1>
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <ul>
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+  <form method="POST">
+    <label for="tabla">Materia:</label>
+    <select name="tabla" required>
+      <option value="casos_penales">Penal</option>
+      <option value="casos_civil">Civil</option>
+      <option value="casos_tierras">Tierras</option>
+      <option value="casos_administrativo">Administrativo</option>
+      <option value="casos_familia">Familia</option>
+      <option value="casos_ninos">Niños</option>
+    </select><br>
+
+    <label for="titulo">Título:</label>
+    <input type="text" name="titulo" required><br>
+
+    <label for="hechos">Hechos:</label>
+    <textarea name="hechos"></textarea><br>
+
+    <label for="pruebas">Pruebas (JSON):</label>
+    <textarea name="pruebas">{}</textarea><br>
+
+    <label for="testigos">Testigos (JSON):</label>
+    <textarea name="testigos">{}</textarea><br>
+
+    <label for="defensa">Defensa:</label>
+    <textarea name="defensa"></textarea><br>
+
+    <label for="ley">Ley:</label>
+    <input type="text" name="ley"><br>
+
+    <label for="procedimiento">Procedimiento:</label>
+    <textarea name="procedimiento"></textarea><br>
+
+    <label for="dificultad">Dificultad (0-10):</label>
+    <input type="number" name="dificultad" min="0" max="10" value="0"><br>
+
+    <button type="submit">Agregar Caso</button>
+  </form>
+{% endblock %}
