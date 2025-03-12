@@ -525,16 +525,21 @@ def caso(tabla, caso_id):
         if request.method == 'POST':
             rol = request.form.get('rol')
             alegato = request.form.get('argumento')
-            if rol and alegato:
+            if not rol or not alegato:
+                flash("Faltan datos en el formulario")
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'error': 'Faltan datos en el formulario'}), 400
+            else:
                 puntos, evaluacion = evaluar_alegato(alegato, caso)
                 nuevos_puntos = user_info['points'] + puntos
                 cursor.execute("UPDATE usuarios SET points = ? WHERE id = ?", (nuevos_puntos, session['user_id']))
                 cursor.execute("INSERT INTO alegatos (user_id, tabla, caso_id, rol, alegato, puntos) VALUES (?, ?, ?, ?, ?, ?)",
                                (session['user_id'], tabla, caso_id, rol, alegato, puntos))
                 conn.commit()
+                # Si la solicitud es AJAX, devolver JSON; si no, renderizar plantilla
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'puntos': puntos, 'evaluacion': evaluacion})
                 resultado = evaluacion
-            else:
-                flash("Faltan datos en el formulario")
         conn.close()
         endpoint_map = {
             'casos_penales': 'penal',
@@ -549,61 +554,8 @@ def caso(tabla, caso_id):
         return render_template('casos.html', caso=caso, user_info=user_info, resultado=resultado, tabla=tabla, endpoint=endpoint)
     except sqlite3.Error as e:
         flash(f"Error en la base de datos: {e}")
-        return redirect(url_for('inicio'))
-
-@app.route('/caso/<tabla>/<int:caso_id>', methods=['GET', 'POST'])
-@login_required
-def caso(tabla, caso_id):
-    user_info = get_user_info(session['user_id'])
-    if not user_info:
-        return redirect(url_for('login'))
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute(f"SELECT id, titulo, hechos, pruebas, testigos, defensa, ley, procedimiento FROM {tabla} WHERE id = ?", (caso_id,))
-        caso_data = cursor.fetchone()
-        if not caso_data:
-            conn.close()
-            flash("Caso no encontrado")
-            return redirect(url_for('inicio'))
-        caso = {
-            'id': caso_data[0],
-            'titulo': caso_data[1],
-            'hechos': caso_data[2],
-            'pruebas': json.loads(caso_data[3]) if caso_data[3] else {},
-            'testigos': json.loads(caso_data[4]) if caso_data[4] else {},
-            'defensa': caso_data[5],
-            'ley': caso_data[6],
-            'procedimiento': caso_data[7]
-        }
-        resultado = None
-        if request.method == 'POST':
-            rol = request.form.get('rol')
-            alegato = request.form.get('argumento')
-            if rol and alegato:
-                puntos, evaluacion = evaluar_alegato(alegato, caso)
-                nuevos_puntos = user_info['points'] + puntos
-                cursor.execute("UPDATE usuarios SET points = ? WHERE id = ?", (nuevos_puntos, session['user_id']))
-                cursor.execute("INSERT INTO alegatos (user_id, tabla, caso_id, rol, alegato, puntos) VALUES (?, ?, ?, ?, ?, ?)",
-                               (session['user_id'], tabla, caso_id, rol, alegato, puntos))
-                conn.commit()
-                # Retornar resultado como JSON para la interfaz
-                return jsonify({'puntos': puntos, 'evaluacion': evaluacion})
-            else:
-                flash("Faltan datos en el formulario")
-        conn.close()
-        endpoint_map = {
-            'casos_penales': 'penal',
-            'casos_civil': 'civil',
-            'casos_tierras': 'tierras',
-            'casos_administrativo': 'administrativo',
-            'casos_familia': 'familia',
-            'casos_ninos': 'ninos'
-        }
-        endpoint = endpoint_map.get(tabla, 'inicio')
-        return render_template('casos.html', caso=caso, user_info=user_info, resultado=resultado, tabla=tabla, endpoint=endpoint)
-    except sqlite3.Error as e:
-        flash(f"Error en la base de datos: {e}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'error': str(e)}), 500
         return redirect(url_for('inicio'))
 
 @app.route('/perfil')
