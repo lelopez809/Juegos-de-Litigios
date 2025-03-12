@@ -417,6 +417,51 @@ def recover():
                 reset = True
     return render_template('recover.html', reset=reset)
 
+@app.route('/add_caso', methods=['GET', 'POST'])
+@login_required
+def add_caso():
+    user_info = get_user_info(session['user_id'])
+    if not user_info:
+        return redirect(url_for('login'))
+
+    # Opcional: Restringir esta ruta a usuarios administradores
+    # Por ejemplo, solo permitir a un usuario específico (puedes verificarlo con el username o un campo "rol" en la tabla usuarios)
+    # if user_info['real_name'] != "Admin":  # Cambia "Admin" por el nombre de usuario permitido
+    #     flash("No tienes permisos para agregar casos.")
+    #     return redirect(url_for('inicio'))
+
+    if request.method == 'POST':
+        tabla = request.form.get('tabla')
+        titulo = request.form.get('titulo')
+        hechos = request.form.get('hechos')
+        pruebas = request.form.get('pruebas', '{}')  # JSON como string
+        testigos = request.form.get('testigos', '{}')  # JSON como string
+        defensa = request.form.get('defensa')
+        ley = request.form.get('ley')
+        procedimiento = request.form.get('procedimiento')
+        dificultad = int(request.form.get('dificultad', 0))
+
+        if not all([tabla, titulo]):
+            flash("Faltan datos obligatorios (tabla, título).")
+            return render_template('add_caso.html', user_info=user_info)
+
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute(f'''
+                INSERT INTO {tabla} (titulo, hechos, pruebas, testigos, defensa, ley, procedimiento, dificultad)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (titulo, hechos, pruebas, testigos, defensa, ley, procedimiento, dificultad))
+            conn.commit()
+            conn.close()
+            flash(f"Caso agregado exitosamente en {tabla}.")
+            return redirect(url_for('inicio'))
+        except sqlite3.Error as e:
+            flash(f"Error al agregar el caso: {e}")
+            return render_template('add_caso.html', user_info=user_info)
+
+    return render_template('add_caso.html', user_info=user_info)
+
 # Ruta principal del juego
 @app.route('/inicio')
 @login_required
