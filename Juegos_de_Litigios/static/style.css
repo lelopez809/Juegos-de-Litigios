@@ -2,31 +2,131 @@ body {
     font-family: 'Arial', sans-serif;
     background: url('https://www.transparenttextures.com/patterns/paper-fibers.png') repeat;
     background-color: #f8f9fa;
+    margin: 0;
+    padding: 20px;
 }
+
 .card {
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     border-radius: 10px;
     transition: transform 0.3s;
     border: 1px solid #d3c8a0;
     background-color: #fffef0;
+    margin-bottom: 20px;
 }
+
 .card:hover {
     transform: translateY(-5px);
 }
+
 .btn-primary {
     transition: all 0.3s;
     background-color: #003087;
     border-color: #003087;
 }
+
 .btn-primary:hover {
     transform: scale(1.05);
     background-color: #CE1126;
     border-color: #CE1126;
 }
+
 .navbar-dark {
     background: linear-gradient(90deg, #003087, #CE1126);
 }
+
+/* Estilo para el formulario al enfocarse */
 .form-control:focus {
     border-color: #CE1126;
     box-shadow: 0 0 0 0.2rem rgba(206, 17, 38, 0.25);
+}
+
+/* Nuevas clases para la interfaz de casos */
+.header {
+    background-color: #003087;
+    color: white;
+    padding: 10px;
+    text-align: center;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.section {
+    background-color: #fffef0;
+    margin: 20px 0;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.section h3 {
+    color: #003087;
+    margin-top: 0;
+}
+
+.prueba, .testigo {
+    margin: 10px 0;
+    padding: 10px;
+    border-left: 4px solid #28a745; /* Verde para pruebas/testigos */
+    background-color: #f9f9f9;
+    border-radius: 5px;
+}
+
+.prueba strong, .testigo strong {
+    color: #003087;
+}
+
+.form-group {
+    margin: 10px 0;
+}
+
+.btn {
+    background-color: #CE1126;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn:hover {
+    transform: scale(1.05);
+    background-color: #003087;
+    border-color: #003087;
+}
+
+#resultado {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+    display: none;
+}
+
+#resultado p {
+    margin: 5px 0;
+    color: #333;
+}
+
+/* Media Queries para responsividad */
+@media (max-width: 600px) {
+    .section {
+        padding: 10px;
+    }
+    .form-group {
+        font-size: 14px;
+    }
+    .btn {
+        width: 100%;
+        padding: 10px;
+    }
+    .header {
+        font-size: 14px;
+        padding: 5px;
+    }
+    .prueba, .testigo {
+        font-size: 14px;
+        padding: 5px;
+    }
 }
