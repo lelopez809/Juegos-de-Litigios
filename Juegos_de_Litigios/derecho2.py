@@ -8,9 +8,32 @@ import string
 import os
 import json
 from werkzeug.utils import secure_filename
+
+print("Iniciando la aplicación...")
+
+app = Flask(__name__, template_folder='templates')
+app.secret_key = os.getenv("SECRET_KEY", "Diosesamor")
+
+print(f"SECRET_KEY: {app.secret_key}")
+
+# Configuración de la base de datos y carpeta de subidas
+DB_PATH = "/data/casos.db"
+UPLOAD_FOLDER = os.path.join(os.getcwd(), "static/uploads")  # Ajusta a /data/static/uploads si quieres persistencia
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Credenciales de correo desde variables de entorno
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+print(f"EMAIL_USER: {EMAIL_USER}")
+print(f"EMAIL_PASSWORD: {EMAIL_PASSWORD}")
+
+# Crear la carpeta de subidas si no existe
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+    print(f"Carpeta de subidas creada: {UPLOAD_FOLDER}")
+
 # Definir el usuario autorizado (cámbialo por tu username o user_id real)
-AUTHORIZED_USERNAME = "lelopez"  # Cambia esto por tu username
-# O usa AUTHORIZED_USER_ID = 1 si prefieres usar el user_id (el primero registrado suele ser 1)
+AUTHORIZED_USERNAME = "lelopez809"  # Cambia esto por tu username
 
 def admin_required(f):
     def wrap(*args, **kwargs):
@@ -33,42 +56,18 @@ def admin_required(f):
     wrap.__name__ = f.__name__
     return wrap
 
-print("Iniciando la aplicación...")
-
-app = Flask(__name__, template_folder='templates')
-app.secret_key = os.getenv("SECRET_KEY", "Diosesamor")
-
-print(f"SECRET_KEY: {app.secret_key}")
-
-# Configuración de la base de datos y carpeta de subidas
-DB_PATH = "/data/casos.db"  # Ruta del disco persistente
-UPLOAD_FOLDER = os.path.join(os.getcwd(), "static/uploads")  # Ruta relativa dentro del contenedor
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# Credenciales de correo desde variables de entorno
-EMAIL_USER = os.getenv("EMAIL_USER")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-print(f"EMAIL_USER: {EMAIL_USER}")
-print(f"EMAIL_PASSWORD: {EMAIL_PASSWORD}")
-
-# Crear la carpeta de subidas si no existe
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-    print(f"Carpeta de subidas creada: {UPLOAD_FOLDER}")
-
 # Función para inicializar la base de datos
 def init_db():
     try:
         print(f"Intentando acceder a {DB_PATH}")
-        data_dir = os.path.dirname(DB_PATH)  # Esto devuelve "/data"
+        data_dir = os.path.dirname(DB_PATH)
         if not os.path.exists(data_dir):
             print(f"El directorio {data_dir} no existe")
-            os.makedirs(data_dir, exist_ok=True)  # Crear /data si no existe
+            os.makedirs(data_dir, exist_ok=True)
             print(f"Directorio {data_dir} creado")
         else:
             print(f"El directorio {data_dir} ya existe")
 
-        # Verificar permisos de escritura después de crear el directorio
         if not os.access(data_dir, os.W_OK):
             print(f"No hay permisos de escritura en {data_dir}")
             raise PermissionError(f"No se pueden escribir en {data_dir}")
@@ -76,7 +75,6 @@ def init_db():
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
-        # Crear tabla de usuarios
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,7 +87,6 @@ def init_db():
             )
         ''')
 
-        # Crear tabla de alegatos
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS alegatos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,7 +101,6 @@ def init_db():
             )
         ''')
 
-        # Crear tabla de juicios
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS juicios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -124,7 +120,6 @@ def init_db():
             )
         ''')
 
-        # Crear tablas de casos
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS casos_penales (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -209,7 +204,7 @@ def init_db():
             )
         ''')
 
-        conn.commit()  # Alineado con cursor.execute (4 espacios)
+        conn.commit()
         print("Base de datos inicializada correctamente.")
     except (sqlite3.Error, PermissionError) as e:
         print(f"Error al inicializar la base de datos: {e}")
@@ -223,20 +218,16 @@ init_db()
 
 print("Configuración inicial completada.")
 
-# Añadir una ruta de prueba simple
 @app.route('/test')
 def test():
     return "¡La aplicación está funcionando!"
 
-# Confirmar que las rutas se cargaron
 print("Rutas cargadas correctamente:")
 for rule in app.url_map.iter_rules():
     print(f" - {rule}")
 
-# Añadir depuración final
 print("Flask está listo para recibir solicitudes.")
 
-# Funciones auxiliares
 def generate_recovery_code():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
@@ -329,7 +320,6 @@ def evaluar_alegato(alegato, caso):
     resultado = f"Puntuación total: {puntos}/100\n\nDetalles de la evaluación:\n" + "\n".join(retroalimentacion)
     return puntos, resultado
 
-# Rutas de autenticación
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -442,7 +432,6 @@ def recover():
                 reset = True
     return render_template('recover.html', reset=reset)
 
-# Ruta principal del juego
 @app.route('/inicio')
 @login_required
 def inicio():
@@ -451,7 +440,6 @@ def inicio():
         return redirect(url_for('logout'))
     return render_template('inicio.html', user_info=user_info)
 
-# Rutas para listar casos por materia
 @app.route('/penal')
 @login_required
 def penal():
@@ -506,14 +494,12 @@ def lista_casos(tabla, template_name):
         flash(f"Error en la base de datos: {e}")
         return redirect(url_for('inicio'))
 
-# Ruta para resolver un caso (modo solitario)
 @app.route('/caso/<tabla>/<int:caso_id>', methods=['GET', 'POST'])
 @login_required
 def caso(tabla, caso_id):
     user_info = get_user_info(session['user_id'])
     if not user_info:
         return redirect(url_for('login'))
-
     try:
         print(f"Intentando conectar a {DB_PATH} para caso {caso_id} en {tabla}")
         conn = sqlite3.connect(DB_PATH)
@@ -525,7 +511,6 @@ def caso(tabla, caso_id):
             conn.close()
             flash("Caso no encontrado")
             return redirect(url_for('inicio'))
-
         caso = {
             'id': caso_data[0],
             'titulo': caso_data[1],
@@ -536,7 +521,6 @@ def caso(tabla, caso_id):
             'ley': caso_data[6],
             'procedimiento': caso_data[7]
         }
-        
         resultado = None
         if request.method == 'POST':
             rol = request.form.get('rol')
@@ -551,7 +535,6 @@ def caso(tabla, caso_id):
                 resultado = evaluacion
             else:
                 flash("Faltan datos en el formulario")
-
         conn.close()
         endpoint_map = {
             'casos_penales': 'penal',
@@ -568,14 +551,12 @@ def caso(tabla, caso_id):
         flash(f"Error en la base de datos: {e}")
         return redirect(url_for('inicio'))
 
-# Ruta para resolver un caso en modo multijugador
 @app.route('/caso/<tabla>/<int:caso_id>/multi', methods=['GET', 'POST'])
 @login_required
 def caso_multi(tabla, caso_id):
     user_info = get_user_info(session['user_id'])
     if not user_info:
         return redirect(url_for('login'))
-
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -585,7 +566,6 @@ def caso_multi(tabla, caso_id):
             conn.close()
             flash("Caso no encontrado")
             return redirect(url_for('inicio'))
-
         caso = {
             'id': caso_data[0],
             'titulo': caso_data[1],
@@ -596,8 +576,6 @@ def caso_multi(tabla, caso_id):
             'ley': caso_data[6],
             'procedimiento': caso_data[7]
         }
-
-        # Mapeo dinámico de tabla a endpoint
         endpoint_map = {
             'casos_penales': 'penal',
             'casos_civil': 'civil',
@@ -607,8 +585,6 @@ def caso_multi(tabla, caso_id):
             'casos_ninos': 'ninos'
         }
         endpoint = endpoint_map.get(tabla, 'inicio')
-
-        # Mapeo de roles por materia
         roles_map = {
             'casos_penales': ('Fiscal', 'Abogado Defensor'),
             'casos_civil': ('Demandante', 'Demandado'),
@@ -618,45 +594,32 @@ def caso_multi(tabla, caso_id):
             'casos_ninos': ('Ministerio Público', 'Abogado Defensor')
         }
         rol1, rol2 = roles_map.get(tabla, ('Jugador 1', 'Jugador 2'))
-
-        # Buscar un juicio pendiente o completado para este caso
         cursor.execute("SELECT id, fiscal_id, defensor_id, fiscal_alegato, defensor_alegato, estado, fiscal_puntos, defensor_puntos, ganador_id, resultado FROM juicios WHERE tabla = ? AND caso_id = ? ORDER BY id DESC LIMIT 1", (tabla, caso_id))
         juicio = cursor.fetchone()
-
         if request.method == 'GET':
             if not juicio or juicio[5] == 'completado':
-                # Crear un nuevo juicio si no hay uno pendiente o el último está completado
                 cursor.execute("INSERT INTO juicios (tabla, caso_id) VALUES (?, ?)", (tabla, caso_id))
                 juicio_id = cursor.lastrowid
                 conn.commit()
                 juicio = (juicio_id, None, None, None, None, 'pendiente', None, None, None, None)
             else:
                 juicio_id = juicio[0]
-
-            # Si el juicio está completado, mostrar resultado almacenado
             if juicio[5] == 'completado' and juicio[9]:
                 return render_template('casos_multi.html', caso=caso, user_info=user_info, resultado=juicio[9], juicio_id=juicio_id, fiscal_id=juicio[1], defensor_id=juicio[2], endpoint=endpoint, rol1=rol1, rol2=rol2)
-
-            # Mostrar formulario con opción de rol disponible
             return render_template('casos_multi.html', caso=caso, user_info=user_info, juicio_id=juicio_id, fiscal_id=juicio[1], defensor_id=juicio[2], endpoint=endpoint, rol1=rol1, rol2=rol2)
-
         if request.method == 'POST':
             rol = request.form.get('rol')
             alegato = request.form.get('argumento')
             juicio_id = request.form.get('juicio_id')
-
             if not rol or not alegato or not juicio_id:
                 flash("Faltan datos en el formulario")
                 return render_template('casos_multi.html', caso=caso, user_info=user_info, juicio_id=juicio_id, fiscal_id=juicio[1] if juicio else None, defensor_id=juicio[2] if juicio else None, endpoint=endpoint, rol1=rol1, rol2=rol2)
-
             cursor.execute("SELECT fiscal_id, defensor_id, fiscal_alegato, defensor_alegato, estado, resultado FROM juicios WHERE id = ?", (juicio_id,))
             juicio = cursor.fetchone()
             if not juicio or juicio[4] != 'pendiente':
                 flash("El juicio no está disponible o ya fue completado")
                 return redirect(url_for(endpoint))
-
             fiscal_id, defensor_id, fiscal_alegato, defensor_alegato = juicio[0], juicio[1], juicio[2], juicio[3]
-
             if rol == rol1 and not fiscal_id:
                 cursor.execute("UPDATE juicios SET fiscal_id = ?, fiscal_alegato = ? WHERE id = ?", (session['user_id'], alegato, juicio_id))
             elif rol == rol2 and not defensor_id:
@@ -664,21 +627,16 @@ def caso_multi(tabla, caso_id):
             else:
                 flash("El rol seleccionado ya está ocupado o no es válido")
                 return render_template('casos_multi.html', caso=caso, user_info=user_info, juicio_id=juicio_id, fiscal_id=fiscal_id, defensor_id=defensor_id, endpoint=endpoint, rol1=rol1, rol2=rol2)
-
             conn.commit()
-
-            # Verificar si ambos jugadores han enviado su alegato
             cursor.execute("SELECT fiscal_id, defensor_id, fiscal_alegato, defensor_alegato FROM juicios WHERE id = ?", (juicio_id,))
             juicio_actualizado = cursor.fetchone()
-            if juicio_actualizado[2] and juicio_actualizado[3]:  # Ambos alegatos enviados
+            if juicio_actualizado[2] and juicio_actualizado[3]:
                 fiscal_puntos, fiscal_eval = evaluar_alegato(juicio_actualizado[2], caso)
                 defensor_puntos, defensor_eval = evaluar_alegato(juicio_actualizado[3], caso)
                 ganador_id = juicio_actualizado[0] if fiscal_puntos > defensor_puntos else juicio_actualizado[1]
                 resultado = f"Juicio Completado\n{rol1} ({user_info['real_name'] if session['user_id'] == juicio_actualizado[0] else 'Oponente'}): {fiscal_puntos}/100\n{fiscal_eval}\n\n{rol2} ({user_info['real_name'] if session['user_id'] == juicio_actualizado[1] else 'Oponente'}): {defensor_puntos}/100\n{defensor_eval}\n\nGanador: {rol1 if fiscal_puntos > defensor_puntos else rol2}"
                 cursor.execute("UPDATE juicios SET fiscal_puntos = ?, defensor_puntos = ?, estado = 'completado', ganador_id = ?, resultado = ? WHERE id = ?",
                                (fiscal_puntos, defensor_puntos, ganador_id, resultado, juicio_id))
-                
-                # Actualizar puntos de los usuarios
                 cursor.execute("UPDATE usuarios SET points = points + ? WHERE id = ?", (fiscal_puntos, juicio_actualizado[0]))
                 cursor.execute("UPDATE usuarios SET points = points + ? WHERE id = ?", (defensor_puntos, juicio_actualizado[1]))
                 cursor.execute("INSERT INTO alegatos (user_id, tabla, caso_id, rol, alegato, puntos) VALUES (?, ?, ?, ?, ?, ?)",
@@ -686,34 +644,27 @@ def caso_multi(tabla, caso_id):
                 cursor.execute("INSERT INTO alegatos (user_id, tabla, caso_id, rol, alegato, puntos) VALUES (?, ?, ?, ?, ?, ?)",
                                (juicio_actualizado[1], tabla, caso_id, rol2, juicio_actualizado[3], defensor_puntos))
                 conn.commit()
-
             else:
                 resultado = "Esperando al oponente para completar el juicio..."
-
             conn.close()
             return render_template('casos_multi.html', caso=caso, user_info=user_info, resultado=resultado, juicio_id=juicio_id, fiscal_id=juicio_actualizado[0], defensor_id=juicio_actualizado[1], endpoint=endpoint, rol1=rol1, rol2=rol2)
-
     except sqlite3.Error as e:
         flash(f"Error en la base de datos: {e}")
         return redirect(url_for('inicio'))
 
-# Ruta para el perfil
 @app.route('/perfil')
 @login_required
 def perfil():
     user_info = get_user_info(session['user_id'])
     if not user_info:
         return redirect(url_for('login'))
-
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        
         cursor.execute("SELECT COUNT(*), AVG(puntos) FROM alegatos WHERE user_id = ?", (session['user_id'],))
         total_casos, promedio_puntos = cursor.fetchone()
         total_casos = total_casos or 0
         promedio_puntos = round(promedio_puntos or 0, 2)
-
         cursor.execute("""
             SELECT a.tabla, a.caso_id, c.titulo, a.rol, a.puntos, a.fecha
             FROM alegatos a
@@ -730,26 +681,55 @@ def perfil():
         """, (session['user_id'],))
         casos_resueltos = cursor.fetchall()
         casos_resueltos = [dict(tabla=row[0], caso_id=row[1], titulo=row[2], rol=row[3], puntos=row[4], fecha=row[5]) for row in casos_resueltos]
-
         cursor.execute("SELECT id, real_name, points FROM usuarios ORDER BY points DESC LIMIT 5")
         ranking = cursor.fetchall()
         ranking = [dict(id=row[0], real_name=row[1], points=row[2]) for row in ranking]
-
         conn.close()
-
         return render_template('perfil.html', user_info=user_info, total_casos=total_casos, promedio_puntos=promedio_puntos, casos_resueltos=casos_resueltos, ranking=ranking)
-
     except sqlite3.Error as e:
         flash(f"Error en la base de datos: {e}")
         return redirect(url_for('inicio'))
 
+@app.route('/add_caso', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def add_caso():
+    if request.method == 'POST':
+        tabla = request.form.get('tabla')
+        titulo = request.form.get('titulo')
+        hechos = request.form.get('hechos')
+        pruebas = request.form.get('pruebas', '{}')
+        testigos = request.form.get('testigos', '{}')
+        defensa = request.form.get('defensa')
+        ley = request.form.get('ley')
+        procedimiento = request.form.get('procedimiento')
+        dificultad = int(request.form.get('dificultad', 0))
+
+        if not tabla or not titulo:
+            flash("Faltan datos obligatorios (tabla y título)")
+            return render_template('add_caso.html')
+
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute(f"""
+                INSERT INTO {tabla} (titulo, hechos, pruebas, testigos, defensa, ley, procedimiento, dificultad)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (titulo, hechos, pruebas, testigos, defensa, ley, procedimiento, dificultad))
+            conn.commit()
+            conn.close()
+            flash("Caso agregado correctamente")
+            return redirect(url_for('inicio'))
+        except sqlite3.Error as e:
+            flash(f"Error al agregar el caso: {e}")
+            return render_template('add_caso.html')
+
+    return render_template('add_caso.html')
+
 if __name__ == "__main__":
-    # Solo ejecutar el servidor de desarrollo si no estamos en producción
     if os.getenv("FLASK_ENV") != "production":
         port = int(os.getenv("PORT", 5000))
         app.run(host="0.0.0.0", port=port)
     else:
         import time
         print("Manteniendo el contenedor activo...")
-        # while True:
-        #     time.sleep(10)  # Comentado para evitar interferencia con Gunicorn en Render
