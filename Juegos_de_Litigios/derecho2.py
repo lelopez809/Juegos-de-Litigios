@@ -36,13 +36,17 @@ if not os.path.exists(UPLOAD_FOLDER):
 def init_db():
     try:
         print(f"Intentando acceder a {DB_PATH}")
-        data_dir = os.path.dirname(DB_PATH)  # Esto es "/opt/render/project/src"
+        data_dir = os.path.dirname(DB_PATH)
         if not os.path.exists(data_dir):
             print(f"El directorio {data_dir} no existe")
             os.makedirs(data_dir, exist_ok=True)
             print(f"Directorio {data_dir} creado")
         else:
             print(f"El directorio {data_dir} ya existe")
+
+        if not os.access(data_dir, os.W_OK):
+            print(f"No hay permisos de escritura en {data_dir}")
+            raise PermissionError(f"No se pueden escribir en {data_dir}")
 
         # Verificar permisos de escritura
         if not os.access(data_dir, os.W_OK):
@@ -185,7 +189,7 @@ def init_db():
             )
         ''')
 
-          conn.commit()
+      conn.commit()  # Alineado con cursor.execute
         print("Base de datos inicializada correctamente.")
     except (sqlite3.Error, PermissionError) as e:
         print(f"Error al inicializar la base de datos: {e}")
@@ -193,7 +197,6 @@ def init_db():
     finally:
         if 'conn' in locals():
             conn.close()
-
 # Inicializar la base de datos al arrancar la aplicación
 init_db()
 
