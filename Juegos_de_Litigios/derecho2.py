@@ -686,6 +686,63 @@ def perfil():
         flash(f"Error en la base de datos: {e}")
         return redirect(url_for('inicio'))
 
+@app.route('/edit_caso/<tabla>/<int:caso_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_caso(tabla, caso_id):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        # Obtener los datos del caso existente
+        cursor.execute(f"SELECT titulo, hechos, pruebas, testigos, defensa, ley, procedimiento, dificultad FROM {tabla} WHERE id = ?", (caso_id,))
+        caso_data = cursor.fetchone()
+        if not caso_data:
+            conn.close()
+            flash("Caso no encontrado")
+            return redirect(url_for('inicio'))
+        
+        caso = {
+            'titulo': caso_data[0],
+            'hechos': caso_data[1],
+            'pruebas': caso_data[2] if caso_data[2] else '{}',
+            'testigos': caso_data[3] if caso_data[3] else '{}',
+            'defensa': caso_data[4],
+            'ley': caso_data[5],
+            'procedimiento': caso_data[6],
+            'dificultad': caso_data[7] if caso_data[7] is not None else 0
+        }
+
+        if request.method == 'POST':
+            # Actualizar los datos del caso
+            titulo = request.form.get('titulo')
+            hechos = request.form.get('hechos')
+            pruebas = request.form.get('pruebas', '{}')
+            testigos = request.form.get('testigos', '{}')
+            defensa = request.form.get('defensa')
+            ley = request.form.get('ley')
+            procedimiento = request.form.get('procedimiento')
+            dificultad = int(request.form.get('dificultad', 0))
+
+            if not tabla or not titulo:
+                flash("Faltan datos obligatorios (tabla y título)")
+                return render_template('edit_caso.html', caso=caso, tabla=tabla)
+
+            cursor.execute(f"""
+                UPDATE {tabla} SET titulo = ?, hechos = ?, pruebas = ?, testigos = ?, defensa = ?, ley = ?, procedimiento = ?, dificultad = ?
+                WHERE id = ?
+            """, (titulo, hechos, pruebas, testigos, defensa, ley, procedimiento, dificultad, caso_id))
+            conn.commit()
+            conn.close()
+            flash("Caso actualizado correctamente")
+            return redirect(url_for('inicio'))
+
+        conn.close()
+        return render_template('edit_caso.html', caso=caso, tabla=tabla)
+
+    except sqlite3.Error as e:
+        flash(f"Error al editar el caso: {e}")
+        return render_template('edit_caso.html', caso=caso, tabla=tabla) if 'caso' in locals() else redirect(url_for('inicio'))
+
 @app.route('/add_caso', methods=['GET', 'POST'])
 @login_required
 @admin_required
