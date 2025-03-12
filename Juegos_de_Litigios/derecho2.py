@@ -36,14 +36,15 @@ if not os.path.exists(UPLOAD_FOLDER):
 def init_db():
     try:
         print(f"Intentando acceder a {DB_PATH}")
-        data_dir = os.path.dirname(DB_PATH)
+        data_dir = os.path.dirname(DB_PATH)  # Esto devuelve "/data"
         if not os.path.exists(data_dir):
             print(f"El directorio {data_dir} no existe")
-            os.makedirs(data_dir, exist_ok=True)
+            os.makedirs(data_dir, exist_ok=True)  # Crear /data si no existe
             print(f"Directorio {data_dir} creado")
         else:
             print(f"El directorio {data_dir} ya existe")
 
+        # Verificar permisos de escritura después de crear el directorio
         if not os.access(data_dir, os.W_OK):
             print(f"No hay permisos de escritura en {data_dir}")
             raise PermissionError(f"No se pueden escribir en {data_dir}")
