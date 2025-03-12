@@ -17,7 +17,7 @@ app.secret_key = os.getenv("SECRET_KEY", "Diosesamor")
 print(f"SECRET_KEY: {app.secret_key}")
 
 # Configuración de la base de datos y carpeta de subidas
-DB_PATH = "/opt/render/project/src/casos.db"  # Ruta relativa por defecto en Railway
+DB_PATH = "/opt/render/project/src/casos.db"  # Ruta relativa por defecto en Render
 UPLOAD_FOLDER = os.path.join(os.getcwd(), "static/uploads")  # Ruta relativa dentro del contenedor
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -44,11 +44,6 @@ def init_db():
         else:
             print(f"El directorio {data_dir} ya existe")
 
-        if not os.access(data_dir, os.W_OK):
-            print(f"No hay permisos de escritura en {data_dir}")
-            raise PermissionError(f"No se pueden escribir en {data_dir}")
-
-        # Verificar permisos de escritura
         if not os.access(data_dir, os.W_OK):
             print(f"No hay permisos de escritura en {data_dir}")
             raise PermissionError(f"No se pueden escribir en {data_dir}")
@@ -189,7 +184,7 @@ def init_db():
             )
         ''')
 
-      conn.commit()  # Alineado con cursor.execute
+        conn.commit()  # Alineado con cursor.execute (4 espacios)
         print("Base de datos inicializada correctamente.")
     except (sqlite3.Error, PermissionError) as e:
         print(f"Error al inicializar la base de datos: {e}")
@@ -197,6 +192,7 @@ def init_db():
     finally:
         if 'conn' in locals():
             conn.close()
+
 # Inicializar la base de datos al arrancar la aplicación
 init_db()
 
@@ -215,7 +211,7 @@ for rule in app.url_map.iter_rules():
 # Añadir depuración final
 print("Flask está listo para recibir solicitudes.")
 
-# Funciones auxiliares (sin cambios)
+# Funciones auxiliares
 def generate_recovery_code():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
@@ -730,5 +726,5 @@ if __name__ == "__main__":
     else:
         import time
         print("Manteniendo el contenedor activo...")
-        while True:
-            time.sleep(10)  # Espera 10 segundos entre ciclos
+        # while True:
+        #     time.sleep(10)  # Comentado para evitar interferencia con Gunicorn en Render
