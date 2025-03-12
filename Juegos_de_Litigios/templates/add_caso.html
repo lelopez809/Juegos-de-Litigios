@@ -1,51 +1,93 @@
 {% extends "base.html" %}
-
+{% block title %}Agregar Caso{% endblock %}
 {% block content %}
-  <h1>Agregar Caso</h1>
-  {% with messages = get_flashed_messages() %}
-    {% if messages %}
-      <ul>
-        {% for message in messages %}
-          <li>{{ message }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  {% endwith %}
-  <form method="POST">
-    <label for="tabla">Materia:</label>
-    <select name="tabla" required>
-      <option value="casos_penales">Penal</option>
-      <option value="casos_civil">Civil</option>
-      <option value="casos_tierras">Tierras</option>
-      <option value="casos_administrativo">Administrativo</option>
-      <option value="casos_familia">Familia</option>
-      <option value="casos_ninos">Niños</option>
-    </select><br>
+<header class="py-3 text-white text-center position-relative overflow-hidden" style="background: linear-gradient(135deg, #003087 0%, #0055a4 50%, #CE1126 100%);">
+    <div class="container position-relative z-1">
+        <h1 class="fw-bold fs-3 mb-1" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
+            <i class="fas fa-plus-circle me-2"></i>Agregar Nuevo Caso
+        </h1>
+        <p class="fs-6 mb-0">Completa el formulario para añadir un caso a la base de datos</p>
+    </div>
+    <div class="position-absolute top-0 start-0 w-100 h-100 opacity-10" style="background: url('https://www.transparenttextures.com/patterns/wood-pattern.png');"></div>
+</header>
 
-    <label for="titulo">Título:</label>
-    <input type="text" name="titulo" required><br>
+<div class="container my-3">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        {% for message in messages %}
+                        <p class="mb-0">{{ message }}</p>
+                        {% endfor %}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="tabla" class="form-label fw-bold text-dark fs-6">Tipo de Caso</label>
+                            <select name="tabla" id="tabla" class="form-select shadow-sm" required>
+                                <option value="casos_penales">Penal</option>
+                                <option value="casos_civil">Civil</option>
+                                <option value="casos_tierras">Tierras</option>
+                                <option value="casos_administrativo">Administrativo</option>
+                                <option value="casos_familia">Familia</option>
+                                <option value="casos_ninos">Niños</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="titulo" class="form-label fw-bold text-dark fs-6">Título del Caso</label>
+                            <input type="text" name="titulo" id="titulo" class="form-control shadow-sm" required placeholder="Ejemplo: Robo en Tienda con Testigos">
+                        </div>
+                        <div class="mb-3">
+                            <label for="hechos" class="form-label fw-bold text-dark fs-6">Hechos</label>
+                            <textarea name="hechos" id="hechos" class="form-control shadow-sm" rows="3" required placeholder="Describe los hechos del caso..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="pruebas" class="form-label fw-bold text-dark fs-6">Pruebas (en formato JSON)</label>
+                            <textarea name="pruebas" id="pruebas" class="form-control shadow-sm" rows="3" placeholder='Ejemplo: {"video_seguridad": "Grabación que muestra al sospechoso"}'></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="testigos" class="form-label fw-bold text-dark fs-6">Testigos (en formato JSON)</label>
+                            <textarea name="testigos" id="testigos" class="form-control shadow-sm" rows="3" placeholder='Ejemplo: {"empleado": "Juan Pérez, empleado de la tienda"}'></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="defensa" class="form-label fw-bold text-dark fs-6">Defensa</label>
+                            <textarea name="defensa" id="defensa" class="form-control shadow-sm" rows="3" placeholder="Argumentos de la defensa..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="ley" class="form-label fw-bold text-dark fs-6">Ley Aplicable</label>
+                            <input type="text" name="ley" id="ley" class="form-control shadow-sm" placeholder="Ejemplo: Ley 631-16 sobre robo">
+                        </div>
+                        <div class="mb-3">
+                            <label for="procedimiento" class="form-label fw-bold text-dark fs-6">Procedimiento</label>
+                            <textarea name="procedimiento" id="procedimiento" class="form-control shadow-sm" rows="3" placeholder="Describe el procedimiento legal..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="dificultad" class="form-label fw-bold text-dark fs-6">Dificultad (0-5)</label>
+                            <input type="number" name="dificultad" id="dificultad" class="form-control shadow-sm" min="0" max="5" value="0">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 shadow-sm" style="background: #CE1126; border: none; transition: background 0.3s;">
+                            <i class="fas fa-save me-2"></i>Agregar Caso
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="text-center mt-3">
+        <a href="{{ url_for('inicio') }}" class="btn btn-outline-secondary shadow-sm" style="border-color: #003087; color: #003087; transition: all 0.3s;">
+            <i class="fas fa-arrow-left me-2"></i>Volver al Inicio
+        </a>
+    </div>
+</div>
 
-    <label for="hechos">Hechos:</label>
-    <textarea name="hechos"></textarea><br>
-
-    <label for="pruebas">Pruebas (JSON):</label>
-    <textarea name="pruebas">{}</textarea><br>
-
-    <label for="testigos">Testigos (JSON):</label>
-    <textarea name="testigos">{}</textarea><br>
-
-    <label for="defensa">Defensa:</label>
-    <textarea name="defensa"></textarea><br>
-
-    <label for="ley">Ley:</label>
-    <input type="text" name="ley"><br>
-
-    <label for="procedimiento">Procedimiento:</label>
-    <textarea name="procedimiento"></textarea><br>
-
-    <label for="dificultad">Dificultad (0-10):</label>
-    <input type="number" name="dificultad" min="0" max="10" value="0"><br>
-
-    <button type="submit">Agregar Caso</button>
-  </form>
+<style>
+    .btn-outline-secondary:hover { background-color: #003087; color: white; }
+    .btn-primary:hover { background-color: #a50e1e !important; }
+    .card-body { padding: 1rem !important; }
+</style>
 {% endblock %}
