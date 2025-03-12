@@ -8,6 +8,30 @@ import string
 import os
 import json
 from werkzeug.utils import secure_filename
+# Definir el usuario autorizado (cámbialo por tu username o user_id real)
+AUTHORIZED_USERNAME = "lelopez"  # Cambia esto por tu username
+# O usa AUTHORIZED_USER_ID = 1 si prefieres usar el user_id (el primero registrado suele ser 1)
+
+def admin_required(f):
+    def wrap(*args, **kwargs):
+        if 'user_id' not in session:
+            flash("Por favor, inicia sesión primero.")
+            return redirect(url_for('login'))
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT username FROM usuarios WHERE id = ?", (session['user_id'],))
+            current_username = cursor.fetchone()[0]
+            conn.close()
+            if current_username != AUTHORIZED_USERNAME:
+                flash("No tienes permiso para acceder a esta página.")
+                return redirect(url_for('inicio'))
+        except sqlite3.Error as e:
+            flash(f"Error en la base de datos: {e}")
+            return redirect(url_for('inicio'))
+        return f(*args, **kwargs)
+    wrap.__name__ = f.__name__
+    return wrap
 
 print("Iniciando la aplicación...")
 
