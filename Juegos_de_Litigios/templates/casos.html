@@ -79,16 +79,23 @@
                         <div class="mb-3">
                             <label for="rol" class="form-label fw-bold text-dark fs-6">Rol</label>
                             <select name="rol" id="rol" class="form-select shadow-sm" required>
-                                <option value="Fiscal">Fiscal</option>
-                                <option value="Defensor">Defensor</option>
-                                <option value="Abogado">Abogado</option>
+                                {% if tabla == 'casos_civil' %}
+                                    <option value="Demandante">Demandante</option>
+                                    <option value="Demandado">Demandado</option>
+                                {% elif tabla == 'casos_penales' %}
+                                    <option value="Fiscal">Fiscal</option>
+                                    <option value="Defensor">Defensor</option>
+                                {% else %}
+                                    <option value="Demandante">Demandante</option>
+                                    <option value="Demandado">Demandado</option>
+                                {% endif %}
                             </select>
                         </div>
                         <div class="mb-3">
                             <label for="argumento" class="form-label fw-bold text-dark fs-6">Alegato</label>
                             <textarea name="argumento" id="argumento" class="form-control shadow-sm" rows="5" required placeholder="Escribe tu alegato aquí..."></textarea>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100 shadow-sm" style="background: #CE1126; border: none; transition: background 0.3s;">
+                        <button type="submit" class="btn btn-primary w-100 shadow-sm">
                             <i class="fas fa-paper-plane me-2"></i>Enviar Alegato
                         </button>
                     </form>
@@ -99,22 +106,18 @@
     </div>
 
     <div class="text-center mt-3">
-        <a href="{{ url_for(endpoint) }}" class="btn btn-outline-secondary shadow-sm" style="border-color: #003087; color: #003087; transition: all 0.3s;">
+        <a href="{{ url_for(endpoint) }}" class="btn btn-outline-secondary shadow-sm">
             <i class="fas fa-arrow-left me-2"></i>Volver a Casos
         </a>
     </div>
 </div>
 
 <style>
-    .btn-outline-secondary:hover { background-color: #003087; color: white; }
-    .btn-primary:hover { background-color: #a50e1e !important; }
     .card-body { padding: 1rem !important; }
     .list-group-item { padding: 0.25rem 0.5rem !important; }
-    /* Ajuste para listas compactas */
     .list-group { max-width: 100%; }
     .list-group-item { font-size: 0.8rem !important; }
     .badge { font-size: 0.7rem !important; padding: 0.1rem 0.4rem; }
-    /* Scroll horizontal si es necesario */
     .list-group[style*="overflow-x: auto"] { white-space: nowrap; }
 </style>
 {% endblock %}
