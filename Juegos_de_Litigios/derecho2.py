@@ -33,7 +33,7 @@ if not os.path.exists(UPLOAD_FOLDER):
     print(f"Carpeta de subidas creada: {UPLOAD_FOLDER}")
 
 # Definir el usuario autorizado (cámbialo por tu username o user_id real)
-AUTHORIZED_USERNAME = "lelopez809"  # Cambia esto por tu username
+AUTHORIZED_USERNAME = "lelopez"  # Cambia esto por tu username
 
 def admin_required(f):
     def wrap(*args, **kwargs):
