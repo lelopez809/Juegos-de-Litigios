@@ -75,25 +75,50 @@
                         <i class="fas fa-pen-alt me-2"></i>Presenta tu Alegato
                     </h3>
                     <p class="text-center text-muted fs-6">
-                        {% if fiscal_id and defensor_id %}
+                        {% if demandante_id and demandado_id %}
                         Ambos roles ocupados, esperando evaluación...
-                        {% elif fiscal_id %}
+                        {% elif demandante_id %}
                         Esperando {{ rol2 }}...
-                        {% elif defensor_id %}
+                        {% elif demandado_id %}
                         Esperando {{ rol1 }}...
                         {% else %}
                         Elige tu rol y espera a un oponente
                         {% endif %}
                     </p>
+                    <div id="notificacion" class="text-center text-muted fs-6 mb-3">
+                        {% if not (demandante_id and demandado_id) %}
+                        Esperando oponente...
+                        {% endif %}
+                    </div>
                     <form method="POST">
                         <input type="hidden" name="juicio_id" value="{{ juicio_id }}">
                         <div class="mb-3">
                             <label for="rol" class="form-label fw-bold text-dark fs-6">Rol</label>
                             <select name="rol" id="rol" class="form-select shadow-sm" required>
-                                {% if not fiscal_id %}
-                                <option value="{{ rol1 }}">{{ rol1 }}</option>
-                                {% elif not defensor_id %}
-                                <option value="{{ rol2 }}">{{ rol2 }}</option>
+                                {% if tabla == 'casos_civil' %}
+                                    {% if not demandante_id %}
+                                    <option value="Demandante">Demandante</option>
+                                    {% elif not demandado_id %}
+                                    <option value="Demandado">Demandado</option>
+                                    {% endif %}
+                                {% elif tabla == 'casos_penales' %}
+                                    {% if not demandante_id %}
+                                    <option value="Fiscal">Fiscal</option>
+                                    {% elif not demandado_id %}
+                                    <option value="Defensor">Defensor</option>
+                                    {% endif %}
+                                {% elif tabla == 'casos_tierras' %}
+                                    {% if not demandante_id %}
+                                    <option value="Reclamante">Reclamante</option>
+                                    {% elif not demandado_id %}
+                                    <option value="Opositor">Opositor</option>
+                                    {% endif %}
+                                {% else %}
+                                    {% if not demandante_id %}
+                                    <option value="Demandante">Demandante</option>
+                                    {% elif not demandado_id %}
+                                    <option value="Demandado">Demandado</option>
+                                    {% endif %}
                                 {% endif %}
                             </select>
                         </div>
@@ -101,7 +126,7 @@
                             <label for="argumento" class="form-label fw-bold text-dark fs-6">Alegato</label>
                             <textarea name="argumento" id="argumento" class="form-control shadow-sm" rows="5" required placeholder="Escribe tu alegato aquí..."></textarea>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100 shadow-sm" style="background: #CE1126; border: none; transition: background 0.3s;">
+                        <button type="submit" class="btn btn-primary w-100 shadow-sm">
                             <i class="fas fa-paper-plane me-2"></i>Enviar Alegato
                         </button>
                     </form>
@@ -112,22 +137,57 @@
     </div>
 
     <div class="text-center mt-3">
-        <a href="{{ url_for(endpoint) }}" class="btn btn-outline-secondary shadow-sm" style="border-color: #003087; color: #003087; transition: all 0.3s;">
+        <a href="{{ url_for(endpoint) }}" class="btn btn-outline-secondary shadow-sm">
             <i class="fas fa-arrow-left me-2"></i>Volver a Casos
         </a>
     </div>
 </div>
 
 <style>
-    .btn-outline-secondary:hover { background-color: #003087; color: white; }
-    .btn-primary:hover { background-color: #a50e1e !important; }
     .card-body { padding: 1rem !important; }
     .list-group-item { padding: 0.25rem 0.5rem !important; }
-    /* Ajuste para listas compactas */
     .list-group { max-width: 100%; }
     .list-group-item { font-size: 0.8rem !important; }
     .badge { font-size: 0.7rem !important; padding: 0.1rem 0.4rem; }
-    /* Scroll horizontal si es necesario */
     .list-group[style*="overflow-x: auto"] { white-space: nowrap; }
 </style>
+
+<script>
+    // Solo ejecutamos el polling si no hay resultado y ambos roles no están ocupados
+    {% if not resultado and not (demandante_id and demandado_id) %}
+    const juicioId = "{{ juicio_id }}";
+    const notificacionDiv = document.getElementById('notificacion');
+
+    // Función para consultar el estado del juicio
+    async function consultarEstado() {
+        try {
+            const response = await fetch(`/estado_juicio/${juicioId}`);
+            const data = await response.json();
+
+            if (response.ok) {
+                if (data.oponente_unido) {
+                    // Mostrar notificación y detener el polling
+                    notificacionDiv.textContent = `¡${data.rol_oponente} se ha unido, el juicio comienza!`;
+                    notificacionDiv.style.color = '#28a745'; // Verde para indicar éxito
+                    clearInterval(pollingInterval);
+                } else {
+                    notificacionDiv.textContent = 'Esperando oponente...';
+                }
+            } else {
+                notificacionDiv.textContent = 'Error al consultar el estado';
+                notificacionDiv.style.color = '#dc3545'; // Rojo para errores
+            }
+        } catch (error) {
+            notificacionDiv.textContent = 'Error de conexión';
+            notificacionDiv.style.color = '#dc3545';
+        }
+    }
+
+    // Iniciar el polling cada 5 segundos
+    const pollingInterval = setInterval(consultarEstado, 5000);
+
+    // Ejecutar una consulta inmediata al cargar la página
+    consultarEstado();
+    {% endif %}
+</script>
 {% endblock %}
