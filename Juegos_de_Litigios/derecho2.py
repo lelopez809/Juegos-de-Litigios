@@ -265,58 +265,80 @@ def login_required(f):
     return wrap
 
 def evaluar_alegato(alegato, caso):
-    puntos = 0
-    retroalimentacion = []
-    alegato = alegato.lower().strip()
+    puntaje = 0
+    dificultad = caso.dificultad  # Valor de 0 a 10 desde la base de datos
+    max_puntaje = 100 + (dificultad * 10)  # 100 para dificultad 0, 110 para 1, ..., 200 para 10
 
-    ley = caso['ley'].lower()
-    if ley in alegato:
-        puntos += 25
-        retroalimentacion.append("+25 puntos: Mencionaste la ley aplicable correctamente.")
-    else:
-        retroalimentacion.append("0 puntos: No mencionaste la ley aplicable (" + caso['ley'] + "). Es fundamental citar la normativa correspondiente.")
+    # Calcular pesos linealmente según dificultad (0-10)
+    # Para dificultad 0: 40% pruebas, 30% testigos, 20% ley, 10% procedimiento
+    # Para dificultad 10: 20% pruebas, 20% testigos, 30% ley, 30% procedimiento
+    peso_pruebas = max(0.20, 0.40 - (dificultad * 0.02))  # Disminuye de 0.40 a 0.20
+    peso_testigos = max(0.20, 0.30 - (dificultad * 0.01))  # Disminuye de 0.30 a 0.20
+    peso_ley = 0.20 + (dificultad * 0.01)  # Aumenta de 0.20 a 0.30
+    peso_procedimiento = 0.10 + (dificultad * 0.01)  # Aumenta de 0.10 a 0.30
 
-    pruebas = caso['pruebas']
-    pruebas_mencionadas = sum(1 for prueba in pruebas.keys() if prueba.lower() in alegato)
-    puntos_pruebas = min(pruebas_mencionadas * 5, 20)
-    puntos += puntos_pruebas
-    if pruebas_mencionadas > 0:
-        retroalimentacion.append(f"+{puntos_pruebas} puntos: Mencionaste {pruebas_mencionadas} de {len(pruebas)} pruebas disponibles.")
-    else:
-        retroalimentacion.append("0 puntos: No mencionaste ninguna prueba. Debes usar las pruebas disponibles para respaldar tu alegato.")
+    # Normalizar pesos (suma debe ser 1)
+    total_peso = peso_pruebas + peso_testigos + peso_ley + peso_procedimiento
+    peso_pruebas /= total_peso
+    peso_testigos /= total_peso
+    peso_ley /= total_peso
+    peso_procedimiento /= total_peso
 
-    testigos = caso['testigos']
-    testigos_mencionados = sum(1 for testigo in testigos.keys() if testigo.lower() in alegato)
-    puntos_testigos = min(testigos_mencionados * 5, 20)
-    puntos += puntos_testigos
-    if testigos_mencionados > 0:
-        retroalimentacion.append(f"+{puntos_testigos} puntos: Mencionaste {testigos_mencionados} de {len(testigos)} testigos disponibles.")
-    else:
-        retroalimentacion.append("0 puntos: No mencionaste ningún testigo. Los testigos son clave para fortalecer tu argumento.")
+    # Convertir alegato a minúsculas para comparaciones
+    alegato = alegato.lower()
 
-    palabras_solicitud = ["solicito", "pido", "requiero", "sentencia", "fallo"]
-    if any(palabra in alegato for palabra in palabras_solicitud):
-        puntos += 15
-        retroalimentacion.append("+15 puntos: Incluiste una solicitud clara en tu alegato.")
-    else:
-        retroalimentacion.append("0 puntos: No hiciste una solicitud clara (ej. 'solicito', 'pido'). Debes especificar qué buscas.")
+    # Evaluar pruebas
+    pruebas = json.loads(caso.pruebas)
+    for prueba, detalle in pruebas.items():
+        if prueba.lower() in alegato or detalle.lower() in alegato:
+            puntaje += 10 * peso_pruebas  # +10 por mención exacta
+        elif any(k.lower() in alegato for k in prueba.split()):
+            puntaje += 5 * peso_pruebas  # +5 por mención parcial
 
-    roles_validos = ["fiscal", "defensor", "abogado", "demandante", "demandado", "recurrente", "administración", "ministerio", "público"]
-    if any(rol in alegato for rol in roles_validos):
-        puntos += 20
-        retroalimentacion.append("+20 puntos: Mencionaste tu rol y el alegato parece coherente con él.")
-    else:
-        retroalimentacion.append("0 puntos: No mencionaste tu rol. Es crucial identificar tu posición.")
+    # Evaluar testigos
+    testigos = json.loads(caso.testigos)
+    for testigo, detalle in testigos.items():
+        if testigo.lower() in alegato or detalle.lower() in alegato:
+            puntaje += 10 * peso_testigos
+        elif any(k.lower() in alegato for k in testigo.split()):
+            puntaje += 5 * peso_testigos
 
-    if len(alegato.split()) < 20:
-        puntos -= 10
-        retroalimentacion.append("-10 puntos: Alegato demasiado corto (< 20 palabras). Debes desarrollar más tus argumentos.")
-    else:
-        retroalimentacion.append("+0 puntos: Longitud adecuada (>= 20 palabras).")
+    # Evaluar ley
+    if caso.ley.lower() in alegato:
+        puntaje += 15 * peso_ley
+    elif any(k.lower() in alegato for k in caso.ley.split()):
+        puntaje += 5 * peso_ley
 
-    puntos = max(0, min(puntos, 100))
-    resultado = f"Puntuación total: {puntos}/100\n\nDetalles de la evaluación:\n" + "\n".join(retroalimentacion)
-    return puntos, resultado
+    # Evaluar procedimiento
+    if caso.procedimiento.lower() in alegato:
+        puntaje += 10 * peso_procedimiento
+    elif "tribunal" in alegato and "debe" in alegato:
+        puntaje += 5 * peso_procedimiento
+
+    # Penalizar argumentos débiles
+    if "no hubo negligencia" in alegato and "negligencia" in caso.hechos.lower():
+        puntaje -= 10
+    if "no hay abuso" in alegato and ("abuso" in caso.hechos.lower() or "moretones" in caso.pruebas.lower()):
+        puntaje -= 10
+
+    # Normalizar puntaje
+    puntaje = max(0, min(puntaje, max_puntaje))
+    porcentaje = (puntaje / max_puntaje) * 100
+
+    # Generar mensaje detallado
+    dificultad_texto = "Fácil" if dificultad <= 3 else "Medio" if dificultad <= 7 else "Difícil"
+    mensaje = (
+        f"Puntuación: {puntaje}/{max_puntaje} ({porcentaje:.2f}%)\n"
+        f"Dificultad: {dificultad}/10 ({dificultad_texto})\n"
+        f"Consejo: {'Menciona más pruebas específicas' if puntaje < max_puntaje * 0.7 else '¡Excelente análisis!'}"
+    )
+
+    return {
+        "puntaje": puntaje,
+        "max_puntaje": max_puntaje,
+        "porcentaje": round(porcentaje, 2),
+        "mensaje": mensaje
+    }
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
