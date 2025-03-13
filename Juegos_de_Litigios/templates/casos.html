@@ -1,94 +1,59 @@
 {% extends "base.html" %}
-{% block title %}{{ caso.titulo }} - {{ endpoint | capitalize }}{% endblock %}
+{% block title %}Casos {{ tabla.replace('casos_', '') | capitalize }}{% endblock %}
 {% block content %}
-<div class="container mt-5">
-    <h2>{{ caso.titulo }}</h2>
-    <p><strong>Dificultad:</strong> {{ caso.dificultad }}/10 ({{ "Fácil" if caso.dificultad <= 3 else "Medio" if caso.dificultad <= 7 else "Difícil" }})
-        <span class="badge bg-{{ 'success' if caso.dificultad <= 3 else 'warning' if caso.dificultad <= 7 else 'danger' }}"></span>
-    </p>
-    <div class="card">
-        <div class="card-body">
-            <h5 class="card-title">Hechos</h5>
-            <p class="card-text">{{ caso.hechos }}</p>
-            <div class="accordion" id="accordionExample">
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="headingOne">
-                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
-                            Pruebas
-                        </button>
-                    </h2>
-                    <div id="collapseOne" class="accordion-collapse collapse {{ 'show' if caso.dificultad <= 3 else '' }}" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
-                        <div class="accordion-body">
-                            <ul>
-                                {% for prueba, detalle in caso.pruebas.items() %}
-                                <li>{{ prueba }}: {{ detalle }}</li>
-                                {% endfor %}
-                            </ul>
+<header class="py-3 text-white text-center position-relative overflow-hidden" style="background: linear-gradient(135deg, #003087 0%, #0055a4 50%, #CE1126 100%);">
+    <div class="container position-relative z-1">
+        <h1 class="fw-bold fs-3 mb-1" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
+            <i class="fas fa-briefcase me-2"></i>Casos {{ tabla.replace('casos_', '') | capitalize }}
+        </h1>
+        <p class="fs-6 mb-0">Elige un caso para resolver o jugar en multijugador</p>
+    </div>
+    <div class="position-absolute top-0 start-0 w-100 h-100 opacity-10" style="background: url('https://www.transparenttextures.com/patterns/wood-pattern.png');"></div>
+</header>
+
+<div class="container my-3">
+    <div class="row g-3">
+        {% for caso in casos %}
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-3">
+                    <h5 class="card-title fw-bold fs-5">{{ caso.titulo }}</h5>
+                    <p class="card-text text-muted fs-6">{{ caso.hechos | truncate(100) }}</p>
+                    <span class="badge bg-{{ 'success' if caso.dificultad <= 3 else 'warning' if caso.dificultad <= 7 else 'danger' }} mb-2">
+                        Dificultad: {{ caso.dificultad }}/10 ({{ "Fácil" if caso.dificultad <= 3 else "Medio" if caso.dificultad <= 7 else "Difícil" }})
+                    </span>
+                    <form action="{{ url_for('caso', tabla=tabla, caso_id=caso.id) }}" method="GET">
+                        <div class="mb-2">
+                            <label for="rol-{{ caso.id }}" class="form-label fw-bold text-dark fs-6">Rol</label>
+                            <select name="rol" id="rol-{{ caso.id }}" class="form-select shadow-sm" required>
+                                <option value="Fiscal">Fiscal</option>
+                                <option value="Defensor">Defensor</option>
+                            </select>
                         </div>
-                    </div>
-                </div>
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="headingTwo">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-                            Testigos
-                        </button>
-                    </h2>
-                    <div id="collapseTwo" class="accordion-collapse collapse {{ 'show' if caso.dificultad <= 3 else '' }}" aria-labelledby="headingTwo" data-bs-parent="#accordionExample">
-                        <div class="accordion-body">
-                            <ul>
-                                {% for testigo, detalle in caso.testigos.items() %}
-                                <li>{{ testigo }}: {{ detalle }}</li>
-                                {% endfor %}
-                            </ul>
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary btn-sm shadow-sm">
+                                <i class="fas fa-play me-2"></i>Jugar Solo
+                            </button>
+                            <a href="{{ url_for('caso_multi', tabla=tabla, caso_id=caso.id) }}" class="btn btn-outline-primary btn-sm shadow-sm">
+                                <i class="fas fa-users me-2"></i>Multijugador
+                            </a>
                         </div>
-                    </div>
+                    </form>
                 </div>
             </div>
-            <h5 class="card-title mt-3">Defensa</h5>
-            <p class="card-text">{{ caso.defensa }}</p>
-            <h5 class="card-title mt-3">Ley</h5>
-            <p class="card-text">{{ caso.ley }}</p>
-            <h5 class="card-title mt-3">Procedimiento</h5>
-            <p class="card-text">{{ caso.procedimiento }}</p>
-            {% if resultado %}
-            <div class="alert alert-info mt-3">
-                {{ resultado | safe }}
-            </div>
-            {% endif %}
-            <form method="POST" id="alegatoForm">
-                <input type="hidden" name="rol" value="Jugador">
-                <div class="mb-3">
-                    <label for="argumento" class="form-label">Alegato</label>
-                    <textarea class="form-control" id="argumento" name="argumento" rows="3" required></textarea>
-                </div>
-                <button type="submit" class="btn btn-primary">Enviar Alegato</button>
-            </form>
-            <p>Puntos actuales: {{ user_info.points }}</p>
-            <a href="{{ url_for(endpoint) }}" class="btn btn-secondary mt-3">Volver</a>
         </div>
+        {% endfor %}
+    </div>
+
+    <div class="text-center mt-3">
+        <a href="{{ url_for('inicio') }}" class="btn btn-outline-secondary shadow-sm">
+            <i class="fas fa-arrow-left me-2"></i>Volver al Inicio
+        </a>
     </div>
 </div>
-<script>
-    document.getElementById('alegatoForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        fetch('{{ url_for("caso", tabla=tabla, caso_id=caso.id) }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: new URLSearchParams(new FormData(this)).toString()
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                alert(data.error);
-            } else {
-                alert(`Puntos ganados: ${data.puntos}\nEvaluación: ${data.evaluacion}`);
-                location.reload();
-            }
-        })
-        .catch(error => console.error('Error:', error));
-    });
-</script>
+
+<style>
+    .card-body { padding: 1rem !important; }
+    .btn-outline-primary:hover { background-color: #003087; color: white; }
+</style>
 {% endblock %}
