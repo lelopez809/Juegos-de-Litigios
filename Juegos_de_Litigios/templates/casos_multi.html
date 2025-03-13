@@ -135,13 +135,14 @@
 <script>
     // Solo ejecutamos el polling si no hay resultado y ambos roles no están ocupados
     {% if not resultado and not (demandante_id and demandado_id) %}
-    const juicioId = "{{ juicio_id }}";
+    const tabla = "{{ tabla }}";
+    const casoId = "{{ caso.id }}";
     const notificacionDiv = document.getElementById('notificacion');
 
     // Función para consultar el estado del juicio
     async function consultarEstado() {
         try {
-            const response = await fetch(`/estado_juicio/${juicioId}`);
+            const response = await fetch(`/estado_juicio/${tabla}/${casoId}`);
             const data = await response.json();
 
             if (response.ok) {
