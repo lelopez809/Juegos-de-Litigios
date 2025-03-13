@@ -621,6 +621,51 @@ def caso_multi(tabla, caso_id):
 
                 conn.commit()
 
+                @app.route('/estado_juicio/<juicio_id>', methods=['GET'])
+@login_required
+def estado_juicio(juicio_id):
+    try:
+        # Conectar a la base de datos
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # Contar cuántos alegatos hay para este juicio_id
+        cursor.execute("SELECT rol, user_id FROM alegatos WHERE juicio_id = ?", (juicio_id,))
+        alegatos = cursor.fetchall()
+
+        # Determinar el estado del juicio
+        num_alegatos = len(alegatos)
+        if num_alegatos == 0:
+            conn.close()
+            return jsonify({'error': 'Juicio no encontrado'}), 404
+        elif num_alegatos == 1:
+            estado = "Esperando"
+            oponente_unido = False
+            rol_oponente = None
+        else:  # num_alegatos == 2
+            estado = "En Progreso"
+            oponente_unido = True
+            # Determinar el rol del oponente
+            user_id_actual = session['user_id']
+            for rol, user_id in alegatos:
+                if user_id != user_id_actual:
+                    rol_oponente = rol
+                    break
+            else:
+                rol_oponente = None  # Esto no debería pasar si hay 2 alegatos
+
+        conn.close()
+
+        # Devolver el resultado en formato JSON
+        return jsonify({
+            'estado': estado,
+            'oponente_unido': oponente_unido,
+            'rol_oponente': rol_oponente
+        })
+
+    except sqlite3.Error as e:
+        return jsonify({'error': f'Error en la base de datos: {str(e)}'}), 500
+
                 # Si ambos roles están ocupados, evaluar los alegatos
                 if fiscal_id and defensor_id:
                     fiscal_puntos, fiscal_evaluacion = evaluar_alegato(fiscal_alegato, caso) if fiscal_alegato else (0, "No presentado")
