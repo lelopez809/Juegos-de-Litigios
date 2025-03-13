@@ -611,6 +611,12 @@ def caso(tabla, caso_id):
         print(f"Intentando conectar a {DB_PATH} para caso {caso_id} en {tabla}")
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
+        # Validar que la tabla existe (esto es un chequeo básico)
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (tabla,))
+        if not cursor.fetchone():
+            conn.close()
+            flash(f"La tabla {tabla} no existe en la base de datos")
+            return redirect(url_for('inicio'))
         cursor.execute(f"SELECT id, titulo, hechos, pruebas, testigos, defensa, ley, procedimiento, dificultad FROM {tabla} WHERE id = ?", (caso_id,))
         caso_data = cursor.fetchone()
         print(f"Buscando caso {caso_id} en {tabla}: {'Encontrado' if caso_data else 'No encontrado'}, datos: {caso_data}")
@@ -629,24 +635,31 @@ def caso(tabla, caso_id):
             'procedimiento': caso_data[7],
             'dificultad': caso_data[8]
         }
-        # Obtener el rol desde los parámetros GET o POST
-        rol = request.args.get('rol') if request.method == 'GET' else request.form.get('rol')
-        if not rol:
-            rol = "Jugador"  # Valor por defecto si no se especifica
+        # Obtener el rol desde los parámetros GET o POST con valor por defecto
+        rol = request.args.get('rol') if request.method == 'GET' and request.args.get('rol') in ['Fiscal', 'Defensor'] else request.form.get('rol')
+        if not rol or rol not in ['Fiscal', 'Defensor']:
+            rol = "Jugador"  # Valor por defecto si no es válido
         resultado = None
         if request.method == 'POST':
             alegato = request.form.get('argumento')
-            if not rol or not alegato:
+            if not alegato:  # Solo verificamos el alegato, el rol ya tiene valor por defecto
                 flash("Faltan datos en el formulario")
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return jsonify({'error': 'Faltan datos en el formulario'}), 400
             else:
-                puntos, evaluacion = evaluar_alegato(alegato, caso, rol=rol)
-                nuevos_puntos = user_info['points'] + puntos
-                cursor.execute("UPDATE usuarios SET points = ? WHERE id = ?", (nuevos_puntos, session['user_id']))
-                cursor.execute("INSERT INTO alegatos (user_id, tabla, caso_id, rol, alegato, puntos) VALUES (?, ?, ?, ?, ?, ?)",
-                               (session['user_id'], tabla, caso_id, rol, alegato, puntos))
-                conn.commit()
+                try:
+                    puntos, evaluacion = evaluar_alegato(alegato, caso, rol=rol)
+                    nuevos_puntos = user_info['points'] + puntos
+                    cursor.execute("UPDATE usuarios SET points = ? WHERE id = ?", (nuevos_puntos, session['user_id']))
+                    cursor.execute("INSERT INTO alegatos (user_id, tabla, caso_id, rol, alegato, puntos) VALUES (?, ?, ?, ?, ?, ?)",
+                                   (session['user_id'], tabla, caso_id, rol, alegato, puntos))
+                    conn.commit()
+                except Exception as e:
+                    conn.rollback()
+                    flash(f"Error al evaluar el alegato: {str(e)}")
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'error': str(e)}), 500
+                    return redirect(url_for('inicio'))
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return jsonify({'puntos': puntos, 'evaluacion': evaluacion})
                 resultado = evaluacion
@@ -660,12 +673,15 @@ def caso(tabla, caso_id):
             'casos_ninos': 'ninos'
         }
         endpoint = endpoint_map.get(tabla, 'inicio')
-        print(f"Enviando caso a caso.html: {caso}, endpoint: {endpoint}")
-        return render_template('caso.html', caso=caso, user_info=user_info, resultado=resultado, tabla=tabla, endpoint=endpoint, rol=rol)
+        print(f"Enviando caso a casos.html: {caso}, endpoint: {endpoint}")
+        return render_template('casos.html', caso=caso, user_info=user_info, resultado=resultado, tabla=tabla, endpoint=endpoint, rol=rol)
     except sqlite3.Error as e:
         flash(f"Error en la base de datos: {e}")
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'error': str(e)}), 500
+        return redirect(url_for('inicio'))
+    except Exception as e:
+        flash(f"Error inesperado: {str(e)}")
         return redirect(url_for('inicio'))
 
 @app.route('/caso_multi/<tabla>/<int:caso_id>', methods=['GET', 'POST'])
