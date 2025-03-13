@@ -273,59 +273,160 @@ def login_required(f):
     wrap.__name__ = f.__name__
     return wrap
 
-def evaluar_alegato(alegato, caso):
+def evaluar_alegato(alegato, caso, rol="Jugador"):
     puntaje = 0
     dificultad = caso['dificultad']  # 0-10 desde la base de datos
     max_puntaje = 100 + (dificultad * 10)  # 100 para 0, 200 para 10
 
-    # Pesos ajustados linealmente según dificultad (0-10)
-    peso_pruebas = max(0.20, 0.40 - (dificultad * 0.02))  # Disminuye de 0.40 a 0.20
-    peso_testigos = max(0.20, 0.30 - (dificultad * 0.01))  # Disminuye de 0.30 a 0.20
-    peso_ley = 0.20 + (dificultad * 0.01)  # Aumenta de 0.20 a 0.30
-    peso_procedimiento = 0.10 + (dificultad * 0.01)  # Aumenta de 0.10 a 0.30
+    # Pesos ajustados según dificultad
+    peso_pruebas_base = 0.40 - (dificultad * 0.015)  # 0.40 a 0.25
+    peso_testigos_base = 0.30 - (dificultad * 0.01)   # 0.30 a 0.20
+    peso_ley_base = 0.20 + (dificultad * 0.015)       # 0.20 a 0.35
+    peso_procedimiento_base = 0.10 + (dificultad * 0.01)  # 0.10 a 0.20
+
+    # Ajustar pesos según el rol
+    if rol == "Fiscal":
+        peso_pruebas = peso_pruebas_base * 1.2  # Más peso a pruebas para el Fiscal
+        peso_testigos = peso_testigos_base * 1.1
+        peso_ley = peso_ley_base * 1.2
+        peso_procedimiento = peso_procedimiento_base * 0.9
+    elif rol == "Defensor":
+        peso_pruebas = peso_pruebas_base * 0.9
+        peso_testigos = peso_testigos_base * 1.1
+        peso_ley = peso_ley_base * 0.9
+        peso_procedimiento = peso_procedimiento_base * 1.2  # Más peso a procedimiento para el Defensor
+    else:  # Jugador (modo neutral)
+        peso_pruebas = peso_pruebas_base
+        peso_testigos = peso_testigos_base
+        peso_ley = peso_ley_base
+        peso_procedimiento = peso_procedimiento_base
+
     total_peso = peso_pruebas + peso_testigos + peso_ley + peso_procedimiento
     peso_pruebas /= total_peso
     peso_testigos /= total_peso
     peso_ley /= total_peso
     peso_procedimiento /= total_peso
 
-    # Lógica de evaluación basada en coincidencias
-    alegato = alegato.lower()
+    # Preprocesamiento del alegato
+    alegato_lower = alegato.lower()
+    oraciones = sent_tokenize(alegato_lower)
+    palabras = word_tokenize(alegato_lower)
+    palabras_filtradas = [palabra for palabra in palabras if palabra not in stop_words and palabra not in punctuation]
+
+    # Inicializar contadores y métricas
+    pruebas_mencionadas = 0
+    testigos_mencionados = 0
+    total_pruebas = len(caso['pruebas'])
+    total_testigos = len(caso['testigos'])
+    argumentos_logicos = 0
+
+    # 1. Evaluar Pruebas
     pruebas = caso['pruebas']
-    for prueba in pruebas:
-        if prueba.lower() in alegato:
-            puntaje += 10 * peso_pruebas
-        elif any(k.lower() in alegato for k in prueba.split()):
-            puntaje += 5 * peso_pruebas
+    for prueba, detalle in pruebas.items():
+        prueba_lower = prueba.lower()
+        detalle_lower = detalle.lower()
+        if prueba_lower in alegato_lower or detalle_lower in alegato_lower:
+            puntaje += 15 * peso_pruebas
+            pruebas_mencionadas += 1
+            contexto = any(oracion for oracion in oraciones if prueba_lower in oracion and any(conector in oracion for conector in ["porque", "debido a", "por lo tanto", "prueba"]))
+            if contexto:
+                puntaje += 5 * peso_pruebas
+                argumentos_logicos += 1
+        elif any(k.lower() in palabras_filtradas for k in prueba_lower.split()):
+            puntaje += 3 * peso_pruebas
 
+    # 2. Evaluar Testigos
     testigos = caso['testigos']
-    for testigo in testigos:
-        if testigo.lower() in alegato:
-            puntaje += 10 * peso_testigos
-        elif any(k.lower() in alegato for k in testigo.split()):
-            puntaje += 5 * peso_testigos
+    for testigo, detalle in testigos.items():
+        testigo_lower = testigo.lower()
+        detalle_lower = detalle.lower()
+        if testigo_lower in alegato_lower or detalle_lower in alegato_lower:
+            puntaje += 12 * peso_testigos
+            testigos_mencionados += 1
+            contexto = any(oracion for oracion in oraciones if testigo_lower in oracion and any(conector in oracion for conector in ["según", "testifica", "afirma", "declara"]))
+            if contexto:
+                puntaje += 4 * peso_testigos
+                argumentos_logicos += 1
+        elif any(k.lower() in palabras_filtradas for k in testigo_lower.split()):
+            puntaje += 2 * peso_testigos
 
-    if caso['ley'].lower() in alegato:
-        puntaje += 15 * peso_ley
-    elif any(k.lower() in alegato for k in caso['ley'].split()):
+    # 3. Evaluar Ley
+    ley_lower = caso['ley'].lower()
+    if ley_lower in alegato_lower:
+        puntaje += 20 * peso_ley
+        contexto = any(oracion for oracion in oraciones if ley_lower in oracion and any(conector in oracion for conector in ["según el artículo", "la ley establece", "conforme a", "bajo"]))
+        if contexto:
+            puntaje += 5 * peso_ley
+            argumentos_logicos += 1
+    elif any(k.lower() in palabras_filtradas for k in ley_lower.split()):
         puntaje += 5 * peso_ley
+    else:
+        puntaje -= 10 * peso_ley
 
-    if caso['procedimiento'].lower() in alegato:
-        puntaje += 10 * peso_procedimiento
-    elif "tribunal" in alegato and "debe" in alegato:
+    # 4. Evaluar Procedimiento
+    procedimiento_lower = caso['procedimiento'].lower()
+    if procedimiento_lower in alegato_lower:
+        puntaje += 15 * peso_procedimiento
+        contexto = any(oracion for oracion in oraciones if procedimiento_lower in oracion and any(conector in oracion for conector in ["el tribunal debe", "proceder conforme", "solicito"]))
+        if contexto:
+            puntaje += 5 * peso_procedimiento
+            argumentos_logicos += 1
+    elif "tribunal" in alegato_lower and "debe" in alegato_lower:
         puntaje += 5 * peso_procedimiento
+    else:
+        puntaje -= 5 * peso_procedimiento
 
-    # Penalizaciones
-    if "no hubo negligencia" in alegato and "negligencia" in caso['hechos'].lower():
+    # 5. Penalizaciones por Contradicciones
+    if "no hubo negligencia" in alegato_lower and "negligencia" in caso['hechos'].lower():
+        puntaje -= 20
+    if "no hay abuso" in alegato_lower and ("abuso" in caso['hechos'].lower() or "moretones" in caso['pruebas'].lower()):
+        puntaje -= 20
+
+    # 6. Requisito Mínimo de Menciones
+    if pruebas_mencionadas < total_pruebas * 0.5:
+        puntaje -= 15 * (1 - pruebas_mencionadas / total_pruebas)
+    if testigos_mencionadas < total_testigos * 0.5:
+        puntaje -= 15 * (1 - testigos_mencionados / total_testigos)
+
+    # 7. Evaluar Coherencia y Estructura
+    if len(oraciones) >= 3:
+        tiene_hechos = any("hechos" in oracion or any(hecho.lower() in oracion for hecho in caso['hechos'].lower().split()) for oracion in oraciones)
+        tiene_conclusion = any(conector in alegato_lower for conector in ["por lo tanto", "en conclusión", "solicito", "pido"])
+        if tiene_hechos and (pruebas_mencionadas > 0 or testigos_mencionados > 0) and tiene_conclusion:
+            puntaje += 10
+        else:
+            puntaje -= 5
+
+    # 8. Penalización por Alegato Corto o Irrelevante
+    if len(palabras_filtradas) < 20:
         puntaje -= 10
-    if "no hay abuso" in alegato and ("abuso" in caso['hechos'].lower() or "moretones" in caso['pruebas'].lower()):
+    palabras_irrelevantes = sum(1 for palabra in palabras_filtradas if palabra in ["siempre", "nunca", "generalmente", "quizás"] and palabra not in caso['hechos'].lower() and palabra not in caso['ley'].lower())
+    if palabras_irrelevantes > len(palabras_filtradas) * 0.3:
         puntaje -= 10
 
+    # 9. Ajuste según el Rol (Penalizaciones específicas)
+    if rol == "Fiscal" and caso['defensa'].lower() in alegato_lower:
+        puntaje -= 10  # Penalización si el Fiscal usa la defensa en su argumento
+    if rol == "Defensor" and "culpable" in alegato_lower and "culpable" not in caso['defensa'].lower():
+        puntaje -= 10  # Penalización si el Defensor asume culpa sin base
+
+    # Normalizar puntaje
     puntaje = max(0, min(puntaje, max_puntaje))
     porcentaje = (puntaje / max_puntaje) * 100
-    evaluacion = f"Puntuación: {puntaje}/{max_puntaje} ({porcentaje:.2f}%) - Dificultad: {dificultad}/10"
 
-    return puntaje, evaluacion
+    # Mensaje detallado
+    dificultad_texto = "Fácil" if dificultad <= 3 else "Medio" if dificultad <= 7 else "Difícil"
+    mensaje = (
+        f"Puntuación: {puntaje}/{max_puntaje} ({porcentaje:.2f}%)\n"
+        f"Rol: {rol}\n"
+        f"Dificultad: {dificultad}/10 ({dificultad_texto})\n"
+        f"Pruebas mencionadas: {pruebas_mencionadas}/{total_pruebas}\n"
+        f"Testigos mencionados: {testigos_mencionados}/{total_testigos}\n"
+        f"Argumentos lógicos: {argumentos_logicos}\n"
+        f"Consejo: {'Construye argumentos más lógicos y estructurados' if argumentos_logicos < 2 else 'Menciona más pruebas y testigos específicos' if puntaje < max_puntaje * 0.7 else '¡Excelente análisis!'}"
+    )
+
+    return puntaje, mensaje
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -526,18 +627,21 @@ def caso(tabla, caso_id):
             'defensa': caso_data[5],
             'ley': caso_data[6],
             'procedimiento': caso_data[7],
-            'dificultad': caso_data[8]  # Añadido para usar en la plantilla
+            'dificultad': caso_data[8]
         }
+        # Obtener el rol desde los parámetros GET o POST
+        rol = request.args.get('rol') if request.method == 'GET' else request.form.get('rol')
+        if not rol:
+            rol = "Jugador"  # Valor por defecto si no se especifica
         resultado = None
         if request.method == 'POST':
-            rol = request.form.get('rol')
             alegato = request.form.get('argumento')
             if not rol or not alegato:
                 flash("Faltan datos en el formulario")
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return jsonify({'error': 'Faltan datos en el formulario'}), 400
             else:
-                puntos, evaluacion = evaluar_alegato(alegato, caso)
+                puntos, evaluacion = evaluar_alegato(alegato, caso, rol=rol)
                 nuevos_puntos = user_info['points'] + puntos
                 cursor.execute("UPDATE usuarios SET points = ? WHERE id = ?", (nuevos_puntos, session['user_id']))
                 cursor.execute("INSERT INTO alegatos (user_id, tabla, caso_id, rol, alegato, puntos) VALUES (?, ?, ?, ?, ?, ?)",
@@ -556,8 +660,8 @@ def caso(tabla, caso_id):
             'casos_ninos': 'ninos'
         }
         endpoint = endpoint_map.get(tabla, 'inicio')
-        print(f"Enviando caso a casos.html: {caso}, endpoint: {endpoint}")
-        return render_template('casos.html', caso=caso, user_info=user_info, resultado=resultado, tabla=tabla, endpoint=endpoint)
+        print(f"Enviando caso a caso.html: {caso}, endpoint: {endpoint}")
+        return render_template('caso.html', caso=caso, user_info=user_info, resultado=resultado, tabla=tabla, endpoint=endpoint, rol=rol)
     except sqlite3.Error as e:
         flash(f"Error en la base de datos: {e}")
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
