@@ -8,6 +8,15 @@ import string
 import os
 import json
 from werkzeug.utils import secure_filename
+import nltk
+import os
+
+# Configurar la ruta de los datos de NLTK
+nltk_data_dir = os.path.join(os.path.dirname(__file__), 'nltk_data')
+if os.path.exists(nltk_data_dir):
+    nltk.data.path.append(nltk_data_dir)
+else:
+    print("Directorio nltk_data no encontrado. Asegúrate de incluirlo en el proyecto.")
 
 print("Iniciando la aplicación...")
 
