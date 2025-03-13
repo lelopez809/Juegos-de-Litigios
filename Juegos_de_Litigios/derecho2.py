@@ -266,80 +266,57 @@ def login_required(f):
 
 def evaluar_alegato(alegato, caso):
     puntaje = 0
-    dificultad = caso.dificultad  # Valor de 0 a 10 desde la base de datos
-    max_puntaje = 100 + (dificultad * 10)  # 100 para dificultad 0, 110 para 1, ..., 200 para 10
+    dificultad = caso['dificultad']  # 0-10 desde la base de datos
+    max_puntaje = 100 + (dificultad * 10)  # 100 para 0, 200 para 10
 
-    # Calcular pesos linealmente según dificultad (0-10)
-    # Para dificultad 0: 40% pruebas, 30% testigos, 20% ley, 10% procedimiento
-    # Para dificultad 10: 20% pruebas, 20% testigos, 30% ley, 30% procedimiento
+    # Pesos ajustados linealmente según dificultad (0-10)
     peso_pruebas = max(0.20, 0.40 - (dificultad * 0.02))  # Disminuye de 0.40 a 0.20
     peso_testigos = max(0.20, 0.30 - (dificultad * 0.01))  # Disminuye de 0.30 a 0.20
     peso_ley = 0.20 + (dificultad * 0.01)  # Aumenta de 0.20 a 0.30
     peso_procedimiento = 0.10 + (dificultad * 0.01)  # Aumenta de 0.10 a 0.30
-
-    # Normalizar pesos (suma debe ser 1)
     total_peso = peso_pruebas + peso_testigos + peso_ley + peso_procedimiento
     peso_pruebas /= total_peso
     peso_testigos /= total_peso
     peso_ley /= total_peso
     peso_procedimiento /= total_peso
 
-    # Convertir alegato a minúsculas para comparaciones
+    # Lógica de evaluación basada en coincidencias
     alegato = alegato.lower()
-
-    # Evaluar pruebas
-    pruebas = json.loads(caso.pruebas)
-    for prueba, detalle in pruebas.items():
-        if prueba.lower() in alegato or detalle.lower() in alegato:
-            puntaje += 10 * peso_pruebas  # +10 por mención exacta
+    pruebas = caso['pruebas']
+    for prueba in pruebas:
+        if prueba.lower() in alegato:
+            puntaje += 10 * peso_pruebas
         elif any(k.lower() in alegato for k in prueba.split()):
-            puntaje += 5 * peso_pruebas  # +5 por mención parcial
+            puntaje += 5 * peso_pruebas
 
-    # Evaluar testigos
-    testigos = json.loads(caso.testigos)
-    for testigo, detalle in testigos.items():
-        if testigo.lower() in alegato or detalle.lower() in alegato:
+    testigos = caso['testigos']
+    for testigo in testigos:
+        if testigo.lower() in alegato:
             puntaje += 10 * peso_testigos
         elif any(k.lower() in alegato for k in testigo.split()):
             puntaje += 5 * peso_testigos
 
-    # Evaluar ley
-    if caso.ley.lower() in alegato:
+    if caso['ley'].lower() in alegato:
         puntaje += 15 * peso_ley
-    elif any(k.lower() in alegato for k in caso.ley.split()):
+    elif any(k.lower() in alegato for k in caso['ley'].split()):
         puntaje += 5 * peso_ley
 
-    # Evaluar procedimiento
-    if caso.procedimiento.lower() in alegato:
+    if caso['procedimiento'].lower() in alegato:
         puntaje += 10 * peso_procedimiento
     elif "tribunal" in alegato and "debe" in alegato:
         puntaje += 5 * peso_procedimiento
 
-    # Penalizar argumentos débiles
-    if "no hubo negligencia" in alegato and "negligencia" in caso.hechos.lower():
+    # Penalizaciones
+    if "no hubo negligencia" in alegato and "negligencia" in caso['hechos'].lower():
         puntaje -= 10
-    if "no hay abuso" in alegato and ("abuso" in caso.hechos.lower() or "moretones" in caso.pruebas.lower()):
+    if "no hay abuso" in alegato and ("abuso" in caso['hechos'].lower() or "moretones" in caso['pruebas'].lower()):
         puntaje -= 10
 
-    # Normalizar puntaje
     puntaje = max(0, min(puntaje, max_puntaje))
     porcentaje = (puntaje / max_puntaje) * 100
+    evaluacion = f"Puntuación: {puntaje}/{max_puntaje} ({porcentaje:.2f}%) - Dificultad: {dificultad}/10"
 
-    # Generar mensaje detallado
-    dificultad_texto = "Fácil" if dificultad <= 3 else "Medio" if dificultad <= 7 else "Difícil"
-    mensaje = (
-        f"Puntuación: {puntaje}/{max_puntaje} ({porcentaje:.2f}%)\n"
-        f"Dificultad: {dificultad}/10 ({dificultad_texto})\n"
-        f"Consejo: {'Menciona más pruebas específicas' if puntaje < max_puntaje * 0.7 else '¡Excelente análisis!'}"
-    )
-
-    return {
-        "puntaje": puntaje,
-        "max_puntaje": max_puntaje,
-        "porcentaje": round(porcentaje, 2),
-        "mensaje": mensaje
-    }
-
+    return puntaje, evaluacion
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -524,7 +501,7 @@ def caso(tabla, caso_id):
         print(f"Intentando conectar a {DB_PATH} para caso {caso_id} en {tabla}")
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute(f"SELECT id, titulo, hechos, pruebas, testigos, defensa, ley, procedimiento FROM {tabla} WHERE id = ?", (caso_id,))
+        cursor.execute(f"SELECT id, titulo, hechos, pruebas, testigos, defensa, ley, procedimiento, dificultad FROM {tabla} WHERE id = ?", (caso_id,))
         caso_data = cursor.fetchone()
         print(f"Buscando caso {caso_id} en {tabla}: {'Encontrado' if caso_data else 'No encontrado'}, datos: {caso_data}")
         if not caso_data:
@@ -539,7 +516,8 @@ def caso(tabla, caso_id):
             'testigos': json.loads(caso_data[4]) if caso_data[4] else {},
             'defensa': caso_data[5],
             'ley': caso_data[6],
-            'procedimiento': caso_data[7]
+            'procedimiento': caso_data[7],
+            'dificultad': caso_data[8]  # Añadido para usar en la plantilla
         }
         resultado = None
         if request.method == 'POST':
@@ -586,7 +564,7 @@ def caso_multi(tabla, caso_id):
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute(f"SELECT id, titulo, hechos, pruebas, testigos, defensa, ley, procedimiento FROM {tabla} WHERE id = ?", (caso_id,))
+        cursor.execute(f"SELECT id, titulo, hechos, pruebas, testigos, defensa, ley, procedimiento, dificultad FROM {tabla} WHERE id = ?", (caso_id,))
         caso_data = cursor.fetchone()
         if not caso_data:
             conn.close()
@@ -600,7 +578,8 @@ def caso_multi(tabla, caso_id):
             'testigos': json.loads(caso_data[4]) if caso_data[4] else {},
             'defensa': caso_data[5],
             'ley': caso_data[6],
-            'procedimiento': caso_data[7]
+            'procedimiento': caso_data[7],
+            'dificultad': caso_data[8]  # Añadido para la plantilla
         }
 
         # Buscar o crear un juicio para este caso
@@ -644,19 +623,20 @@ def caso_multi(tabla, caso_id):
                     conn.close()
                     return redirect(url_for('caso_multi', tabla=tabla, caso_id=caso_id))
 
-                conn.commit()
-
-                # Si ambos roles están ocupados, evaluar los alegatos
+                # Evaluar si ambos roles están ocupados
                 if fiscal_id and defensor_id:
-                    fiscal_puntos, fiscal_evaluacion = evaluar_alegato(fiscal_alegato, caso) if fiscal_alegato else (0, "No presentado")
-                    defensor_puntos, defensor_evaluacion = evaluar_alegato(defensor_alegato, caso) if defensor_alegato else (0, "No presentado")
-                    ganador_id = fiscal_id if fiscal_puntos > defensor_puntos else defensor_id if defensor_puntos > fiscal_puntos else None
-                    resultado = f"Fiscal: {fiscal_puntos}/100\n{fiscal_evaluacion}\n\nDefensor: {defensor_puntos}/100\n{defensor_evaluacion}\n\nGanador: {'Fiscal' if ganador_id == fiscal_id else 'Defensor' if ganador_id == defensor_id else 'Empate'}"
-                    cursor.execute("UPDATE juicios SET estado = 'completado', fiscal_puntos = ?, defensor_puntos = ?, ganador_id = ?, resultado = ? WHERE id = ?",
-                                   (fiscal_puntos, defensor_puntos, ganador_id, resultado, juicio_id))
-                    cursor.execute("UPDATE usuarios SET points = points + ? WHERE id = ?", (fiscal_puntos, fiscal_id))
-                    cursor.execute("UPDATE usuarios SET points = points + ? WHERE id = ?", (defensor_puntos, defensor_id))
+                    puntos_fiscal, eval_fiscal = evaluar_alegato(fiscal_alegato, caso)
+                    puntos_defensor, eval_defensor = evaluar_alegato(defensor_alegato, caso)
+                    ganador = "Fiscal" if puntos_fiscal > puntos_defensor else "Defensor"
+                    resultado = f"Resultado del Juicio:\nFiscal: {eval_fiscal}\nDefensor: {eval_defensor}\nGanador: {ganador}"
+                    cursor.execute("UPDATE juicios SET estado = 'completado', resultado = ? WHERE id = ?", (resultado, juicio_id))
+                    nuevos_puntos_fiscal = user_info['points'] + puntos_fiscal
+                    nuevos_puntos_defensor = get_user_info(fiscal_id)['points'] + puntos_defensor if fiscal_id != session['user_id'] else nuevos_puntos_fiscal
+                    cursor.execute("UPDATE usuarios SET points = ? WHERE id = ?", (nuevos_puntos_fiscal, fiscal_id))
+                    cursor.execute("UPDATE usuarios SET points = ? WHERE id = ?", (nuevos_puntos_defensor, defensor_id))
                     conn.commit()
+
+                conn.commit()
 
         conn.close()
         endpoint_map = {
@@ -668,7 +648,7 @@ def caso_multi(tabla, caso_id):
             'casos_ninos': 'ninos'
         }
         endpoint = endpoint_map.get(tabla, 'inicio')
-        return render_template('casos_multi.html', caso=caso, user_info=user_info, juicio_id=str(juicio_id), fiscal_id=fiscal_id, defensor_id=defensor_id, rol1=rol1, rol2=rol2, resultado=resultado, endpoint=endpoint, tabla=tabla)
+        return render_template('casos.html', caso=caso, user_info=user_info, resultado=resultado, tabla=tabla, endpoint=endpoint)
     except sqlite3.Error as e:
         flash(f"Error en la base de datos: {e}")
         return redirect(url_for('inicio'))
