@@ -617,6 +617,20 @@ def profile():
     user_info = get_user_info(session['user_id'])
     if not user_info:
         return redirect(url_for('login'))
+    
+    # Obtener lista de todos los usuarios para el ranking
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT real_name, points FROM usuarios ORDER BY points DESC")
+        all_users = [{'real_name': row[0], 'points': row[1], 
+                      'rank': 'Principiante' if row[1] <= 50 else 'Medio' if row[1] <= 150 else 'Pro'} 
+                     for row in cursor.fetchall()]
+        conn.close()
+    except sqlite3.Error as e:
+        flash(f"Error al cargar el ranking: {e}")
+        all_users = []
+
     if request.method == 'POST':
         real_name = request.form.get('real_name')
         email = request.form.get('email')
@@ -639,7 +653,8 @@ def profile():
             return redirect(url_for('profile'))
         except sqlite3.Error as e:
             flash(f"Error en la base de datos: {e}")
-    return render_template('profile.html', user_info=user_info)
+    
+    return render_template('profile.html', user_info=user_info, all_users=all_users)
 
 @app.route('/admin', methods=['GET', 'POST'])
 @admin_required
