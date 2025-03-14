@@ -570,11 +570,9 @@ def caso(tabla, caso_id):
             'procedimiento': caso_data[7],
             'dificultad': caso_data[8]
         }
-        # Ajustar los roles válidos según la tabla
-        valid_roles = ['Fiscal', 'Defensor'] if tabla == 'casos_penales' else ['Demandante', 'Demandado']
-        rol = request.args.get('rol') if request.method == 'GET' and request.args.get('rol') in valid_roles else request.form.get('rol')
-        if not rol or rol not in valid_roles:
-            rol = "Jugador"
+        rol = request.args.get('rol') if request.method == 'GET' and request.args.get('rol') in ['Fiscal', 'Defensor'] else request.form.get('rol')
+        if not rol or rol not in ['Fiscal', 'Defensor']:
+            rol = "Jugador"  # Valor por defecto si no es válido
         resultado = None
         if request.method == 'POST':
             alegato = request.form.get('argumento')
