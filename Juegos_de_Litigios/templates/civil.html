@@ -10,7 +10,7 @@
             Bienvenido, {{ user_info.real_name }} ({{ user_info.rank }}) - Puntos: {{ user_info.points }}
         </p>
         <p class="lead mb-3 animate__animated animate__fadeIn" style="color: #f8f9fa;">
-            Resuelva casos sobre contratos, propiedad y obligaciones
+            Resuelva casos relacionados con disputas civiles entre partes
         </p>
         <button type="button" class="btn btn-light btn-lg shadow-sm animate__animated animate__pulse animate__infinite" data-bs-toggle="modal" data-bs-target="#reglasModal" style="background: #fff; color: #003087; border: 2px solid #CE1126;">
             <i class="fas fa-book-open me-2"></i>Reglas del Juego
@@ -38,8 +38,23 @@
                         <span class="badge bg-danger">Dificultad: Alta ({{ caso.dificultad }}/10)</span>
                         {% endif %}
                     </p>
-                    <a href="{{ url_for('caso', tabla='casos_civil', caso_id=caso.id) }}" class="btn btn-primary btn-lg">Resolver Caso</a>
-                    <a href="{{ url_for('caso_multi', tabla='casos_civil', caso_id=caso.id) }}" class="btn btn-warning btn-sm mt-2">Multijugador</a>
+                    <form action="{{ url_for('caso', tabla='casos_civil', caso_id=caso.id) }}" method="GET">
+                        <div class="mb-2">
+                            <label for="rol-{{ caso.id }}" class="form-label fw-bold text-dark fs-6">Rol</label>
+                            <select name="rol" id="rol-{{ caso.id }}" class="form-select shadow-sm" required>
+                                <option value="Demandante">Demandante</option>
+                                <option value="Demandado">Demandado</option>
+                            </select>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-play me-2"></i>Resolver Caso
+                            </button>
+                            <a href="{{ url_for('caso_multi', tabla='casos_civil', caso_id=caso.id) }}" class="btn btn-warning btn-sm mt-2">
+                                Multijugador
+                            </a>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
