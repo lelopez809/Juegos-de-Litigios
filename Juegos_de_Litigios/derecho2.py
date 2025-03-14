@@ -263,7 +263,6 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
     puntaje_base = min(num_oraciones * 5, 20)
     puntaje += puntaje_base
 
-    # Ajuste de bonificaciones por rol
     if rol in ["Fiscal", "Demandante"]:
         bonus_rol = 15 if dificultad > 5 else 10
     elif rol in ["Defensor", "Demandado"]:
@@ -483,7 +482,6 @@ def caso(tabla, caso_id):
             'procedimiento': caso_data[7],
             'dificultad': caso_data[8]
         }
-        # Roles válidos según la tabla
         valid_roles = ['Fiscal', 'Defensor'] if tabla == 'casos_penales' else ['Demandante', 'Demandado']
         rol = request.args.get('rol') if request.method == 'GET' and request.args.get('rol') in valid_roles else request.form.get('rol')
         if not rol or rol not in valid_roles:
