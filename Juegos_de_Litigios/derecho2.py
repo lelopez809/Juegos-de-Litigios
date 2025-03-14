@@ -547,7 +547,6 @@ def caso(tabla, caso_id):
         print(f"Intentando conectar a {DB_PATH} para caso {caso_id} en {tabla}")
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        # Validar que la tabla existe (esto es un chequeo básico)
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (tabla,))
         if not cursor.fetchone():
             conn.close()
@@ -571,14 +570,15 @@ def caso(tabla, caso_id):
             'procedimiento': caso_data[7],
             'dificultad': caso_data[8]
         }
-        # Obtener el rol desde los parámetros GET o POST con valor por defecto
-        rol = request.args.get('rol') if request.method == 'GET' and request.args.get('rol') in ['Fiscal', 'Defensor'] else request.form.get('rol')
-        if not rol or rol not in ['Fiscal', 'Defensor']:
-            rol = "Jugador"  # Valor por defecto si no es válido
+        # Ajustar los roles válidos según la tabla
+        valid_roles = ['Fiscal', 'Defensor'] if tabla == 'casos_penales' else ['Demandante', 'Demandado']
+        rol = request.args.get('rol') if request.method == 'GET' and request.args.get('rol') in valid_roles else request.form.get('rol')
+        if not rol or rol not in valid_roles:
+            rol = "Jugador"
         resultado = None
         if request.method == 'POST':
             alegato = request.form.get('argumento')
-            if not alegato:  # Solo verificamos el alegato, el rol ya tiene valor por defecto
+            if not alegato:
                 flash("Faltan datos en el formulario")
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return jsonify({'error': 'Faltan datos en el formulario'}), 400
@@ -618,104 +618,6 @@ def caso(tabla, caso_id):
         return redirect(url_for('inicio'))
     except Exception as e:
         flash(f"Error inesperado: {str(e)}")
-        return redirect(url_for('inicio'))
-
-@app.route('/caso_multi/<tabla>/<int:caso_id>', methods=['GET', 'POST'])
-@login_required
-def caso_multi(tabla, caso_id):
-    user_info = get_user_info(session['user_id'])
-    if not user_info:
-        return redirect(url_for('login'))
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute(f"SELECT id, titulo, hechos, pruebas, testigos, defensa, ley, procedimiento, dificultad FROM {tabla} WHERE id = ?", (caso_id,))
-        caso_data = cursor.fetchone()
-        if not caso_data:
-            conn.close()
-            flash("Caso no encontrado")
-            return redirect(url_for('inicio'))
-        caso = {
-            'id': caso_data[0],
-            'titulo': caso_data[1],
-            'hechos': caso_data[2],
-            'pruebas': json.loads(caso_data[3]) if caso_data[3] else {},
-            'testigos': json.loads(caso_data[4]) if caso_data[4] else {},
-            'defensa': caso_data[5],
-            'ley': caso_data[6],
-            'procedimiento': caso_data[7],
-            'dificultad': caso_data[8]  # Añadido para la plantilla
-        }
-
-        # Buscar o crear un juicio para este caso
-        cursor.execute("SELECT id, fiscal_id, defensor_id, fiscal_alegato, defensor_alegato, estado, resultado FROM juicios WHERE tabla = ? AND caso_id = ? AND estado = 'pendiente'", (tabla, caso_id))
-        juicio = cursor.fetchone()
-        juicio_id = None
-        fiscal_id = None
-        defensor_id = None
-        resultado = None
-
-        if juicio:
-            juicio_id, fiscal_id, defensor_id, fiscal_alegato, defensor_alegato, estado, resultado = juicio
-        else:
-            cursor.execute("INSERT INTO juicios (tabla, caso_id) VALUES (?, ?)", (tabla, caso_id))
-            conn.commit()
-            cursor.execute("SELECT id FROM juicios WHERE tabla = ? AND caso_id = ? AND estado = 'pendiente'", (tabla, caso_id))
-            juicio_id = cursor.fetchone()[0]
-
-        rol1 = "Fiscal"
-        rol2 = "Defensor"
-
-        if request.method == 'POST':
-            rol = request.form.get('rol')
-            alegato = request.form.get('argumento')
-            if not rol or not alegato:
-                flash("Faltan datos en el formulario")
-            elif rol not in [rol1, rol2]:
-                flash("Rol inválido")
-            else:
-                # Insertar el alegato en la tabla 'alegatos' con el juicio_id
-                cursor.execute("INSERT INTO alegatos (user_id, tabla, caso_id, rol, alegato, juicio_id) VALUES (?, ?, ?, ?, ?, ?)",
-                               (session['user_id'], tabla, caso_id, rol, alegato, str(juicio_id)))
-                if rol == rol1 and not fiscal_id:
-                    cursor.execute("UPDATE juicios SET fiscal_id = ?, fiscal_alegato = ? WHERE id = ?", (session['user_id'], alegato, juicio_id))
-                    fiscal_id = session['user_id']
-                elif rol == rol2 and not defensor_id:
-                    cursor.execute("UPDATE juicios SET defensor_id = ?, defensor_alegato = ? WHERE id = ?", (session['user_id'], alegato, juicio_id))
-                    defensor_id = session['user_id']
-                else:
-                    flash("El rol seleccionado ya está ocupado")
-                    conn.close()
-                    return redirect(url_for('caso_multi', tabla=tabla, caso_id=caso_id))
-
-                # Evaluar si ambos roles están ocupados
-                if fiscal_id and defensor_id:
-                    puntos_fiscal, eval_fiscal = evaluar_alegato(fiscal_alegato, caso)
-                    puntos_defensor, eval_defensor = evaluar_alegato(defensor_alegato, caso)
-                    ganador = "Fiscal" if puntos_fiscal > puntos_defensor else "Defensor"
-                    resultado = f"Resultado del Juicio:\nFiscal: {eval_fiscal}\nDefensor: {eval_defensor}\nGanador: {ganador}"
-                    cursor.execute("UPDATE juicios SET estado = 'completado', resultado = ? WHERE id = ?", (resultado, juicio_id))
-                    nuevos_puntos_fiscal = user_info['points'] + puntos_fiscal
-                    nuevos_puntos_defensor = get_user_info(fiscal_id)['points'] + puntos_defensor if fiscal_id != session['user_id'] else nuevos_puntos_fiscal
-                    cursor.execute("UPDATE usuarios SET points = ? WHERE id = ?", (nuevos_puntos_fiscal, fiscal_id))
-                    cursor.execute("UPDATE usuarios SET points = ? WHERE id = ?", (nuevos_puntos_defensor, defensor_id))
-                    conn.commit()
-
-                conn.commit()
-
-        conn.close()
-        endpoint_map = {
-            'casos_penales': 'penal',
-            'casos_civil': 'civil',
-            'casos_tierras': 'tierras',
-            'casos_administrativo': 'administrativo',
-            'casos_familia': 'familia',
-            'casos_ninos': 'ninos'
-        }
-        endpoint = endpoint_map.get(tabla, 'inicio')
-        return render_template('casos.html', caso=caso, user_info=user_info, resultado=resultado, tabla=tabla, endpoint=endpoint)
-    except sqlite3.Error as e:
-        flash(f"Error en la base de datos: {e}")
         return redirect(url_for('inicio'))
 
 @app.route('/estado_juicio/<juicio_id>', methods=['GET'])
