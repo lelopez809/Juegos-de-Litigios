@@ -253,7 +253,7 @@ def get_user_info(user_id):
     except sqlite3.Error as e:
         print(f"Error al obtener información del usuario: {e}")
         return None
-        
+
 def evaluar_alegato(alegato, caso, rol="Jugador"):
     stop_words = set(stopwords.words('spanish'))
     palabras = word_tokenize(alegato)
@@ -385,7 +385,7 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
     elif num_palabras_unicas <= 10:
         mejoras.append("Usa más de 10 palabras distintas pa’ un bonus (+5).")
 
-    # Consejos éticos con "magistrado/a" según el rol
+    # Consejos éticos con "magistrado/a"
     consejos_eticos = [
         "Dirígete al magistrado o magistrada con respeto, usando 'Honorable Magistrado/a'.",
         "Mantén la compostura en el salón, sin interrumpir ni alzar la voz.",
@@ -396,6 +396,7 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
     elif rol in ["Fiscal", "Demandante"]:
         consejos_eticos.append("Busca justicia con integridad, sin exagerar cargos pa’ presionar.")
 
+    # Mensaje corregido con formato limpio
     mensaje = (
         f"Puntuación: {puntaje}/{max_puntaje} ({int(porcentaje)}%)\n"
         f"Rol: {rol}\n"
@@ -404,11 +405,11 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
         f"Testigos mencionados: {testigos_mencionados}/{total_testigos}\n"
         f"Argumentos lógicos: {argumentos_logicos}\n"
         f"Variedad de palabras: {puntaje_variedad}\n"
-        f"\nPuntos que fallaste:\n" + ("\n".join(fallos) if fallos else "Ninguno, ¡bien hecho!")\n"
-        f"\nCómo mejorar:\n" + ("\n".join(mejoras) if mejoras else "Sigue así, ¡perfecto!")\n"
-        f"\nConsejos de ética en audiencias:\n" + "\n".join(consejos_eticos)
+        "\nPuntos que fallaste:\n" + ("\n".join(fallos) if fallos else "Ninguno, ¡bien hecho!") + "\n"
+        "\nCómo mejorar:\n" + ("\n".join(mejoras) if mejoras else "Sigue así, ¡perfecto!") + "\n"
+        "\nConsejos de ética en audiencias:\n" + "\n".join(consejos_eticos)
     )
-    return puntaje, mensaje
+    return puntaje, mensaje        
 
 @app.route('/')
 def index():
