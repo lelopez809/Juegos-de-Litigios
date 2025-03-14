@@ -253,17 +253,15 @@ def get_user_info(user_id):
     except sqlite3.Error as e:
         print(f"Error al obtener información del usuario: {e}")
         return None
-
+        
 def evaluar_alegato(alegato, caso, rol="Jugador"):
-    # Paso 1: Quitar stopwords pero mantener original
     stop_words = set(stopwords.words('spanish'))
     palabras = word_tokenize(alegato)
     alegato_limpio = ' '.join([palabra for palabra in palabras if palabra.lower() not in stop_words])
     
-    # Paso 2: Dividir en oraciones y tokenizar
     oraciones = sent_tokenize(alegato_limpio)
     num_oraciones = len(oraciones)
-    tokens = word_tokenize(alegato_limpio.lower())  # Tokens pa’ palabras clave
+    tokens = word_tokenize(alegato_limpio.lower())
     dificultad = caso['dificultad']
     max_puntaje = 100
 
@@ -275,7 +273,7 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
         bonus_rol = 15 if dificultad > 5 else 10
     elif rol in ["Defensor", "Demandado"]:
         bonus_rol = 20 if dificultad > 7 else 15
-    else:  # Jugador
+    else:
         bonus_rol = 5
     puntaje += bonus_rol
 
@@ -285,8 +283,7 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
     testigos_mencionados = 0
     argumentos_logicos = 0
 
-    alegato_lower = alegato.lower()  # Usamos original pa’ coincidencias completas
-    # Búsqueda de pruebas
+    alegato_lower = alegato.lower()
     for prueba, detalle in caso['pruebas'].items():
         prueba_lower = prueba.lower()
         detalle_lower = detalle.lower()
@@ -298,7 +295,6 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
                 puntaje += 5
                 argumentos_logicos += 1
 
-    # Búsqueda de testigos
     for testigo, detalle in caso['testigos'].items():
         testigo_lower = testigo.lower()
         detalle_lower = detalle.lower()
@@ -310,28 +306,30 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
                 puntaje += 4
                 argumentos_logicos += 1
 
-    # Búsqueda de ley y procedimiento
     ley_lower = caso['ley'].lower()
-    if (ley_lower in alegato_lower or any(token in ley_lower for token in tokens)):
+    ley_mencionada = ley_lower in alegato_lower and len(ley_lower.split()) > 1
+    if ley_mencionada:
         puntaje += 15
         if any("según el artículo" in oracion or "la ley" in oracion for oracion in sent_tokenize(alegato_lower)):
             puntaje += 5
     
     proc_lower = caso['procedimiento'].lower()
-    if (proc_lower in alegato_lower or any(token in proc_lower for token in tokens)):
+    proc_mencionado = proc_lower in alegato_lower and len(proc_lower.split()) > 1
+    if proc_mencionado:
         puntaje += 10
         if any("el tribunal" in oracion or "solicito" in oracion for oracion in sent_tokenize(alegato_lower)):
             puntaje += 5
 
-    # Penalizaciones ajustadas
-    if total_pruebas > 0 and pruebas_mencionadas < total_pruebas / 2:
-        puntaje -= 5  # Menos dura
-    if total_testigos > 0 and testigos_mencionados < total_testigos / 2:
-        puntaje -= 4  # Menos dura
-    if len(oraciones) < 3:
-        puntaje -= 3  # Menos dura
+    penalizacion_pruebas = total_pruebas > 0 and pruebas_mencionadas < total_pruebas / 2
+    if penalizacion_pruebas:
+        puntaje -= 5
+    penalizacion_testigos = total_testigos > 0 and testigos_mencionados < total_testigos / 2
+    if penalizacion_testigos:
+        puntaje -= 4
+    penalizacion_oraciones = len(oraciones) < 3
+    if penalizacion_oraciones:
+        puntaje -= 3
 
-    # Frecuencia de palabras
     frecuencias = {}
     for token in tokens:
         frecuencias[token] = frecuencias.get(token, 0) + 1
@@ -345,11 +343,59 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
         puntaje_variedad = 5
     puntaje += puntaje_variedad
 
-    # Limitar puntaje
     puntaje = max(0, min(puntaje, max_puntaje))
     porcentaje = (puntaje / max_puntaje) * 100
 
     dificultad_texto = "Fácil" if dificultad <= 3 else "Medio" if dificultad <= 7 else "Difícil"
+
+    # Feedback de fallos y mejoras
+    fallos = []
+    mejoras = []
+    
+    if pruebas_mencionadas < total_pruebas:
+        fallos.append(f"No mencionaste {total_pruebas - pruebas_mencionadas} pruebas.")
+        mejoras.append("Incluye más pruebas específicas como 'ventana forzada' o 'bolsa sospechosa'.")
+    if penalizacion_pruebas:
+        fallos.append("Mencionaste menos de la mitad de las pruebas (-5 puntos).")
+    
+    if testigos_mencionados < total_testigos:
+        fallos.append(f"No mencionaste {total_testigos - testigos_mencionados} testigos.")
+        mejoras.append("Nombra más testigos o usa sus declaraciones.")
+    if penalizacion_testigos:
+        fallos.append("Mencionaste menos de la mitad de los testigos (-4 puntos).")
+    
+    if not ley_mencionada:
+        fallos.append("No mencionaste la ley aplicable.")
+        mejoras.append("Cita la ley, ej: 'robo agravado'.")
+    
+    if not proc_mencionado:
+        fallos.append("No mencionaste el procedimiento.")
+        mejoras.append("Menciona el procedimiento, ej: 'tribunal de primera instancia'.")
+    
+    if penalizacion_oraciones:
+        fallos.append(f"Tu alegato tiene solo {num_oraciones} oración(es) (-3 puntos).")
+        mejoras.append("Escribe al menos 3 oraciones pa’ más puntos.")
+    
+    if argumentos_logicos < max(total_pruebas, total_testigos):
+        mejoras.append("Usa más 'porque', 'según' o 'declara' pa’ argumentos lógicos.")
+    
+    if max_repeticion > 5:
+        fallos.append("Repetiste una palabra más de 5 veces (-5 puntos).")
+        mejoras.append("Varía tu vocabulario.")
+    elif num_palabras_unicas <= 10:
+        mejoras.append("Usa más de 10 palabras distintas pa’ un bonus (+5).")
+
+    # Consejos éticos con "magistrado/a" según el rol
+    consejos_eticos = [
+        "Dirígete al magistrado o magistrada con respeto, usando 'Honorable Magistrado/a'.",
+        "Mantén la compostura en el salón, sin interrumpir ni alzar la voz.",
+        "Presenta tus argumentos con honestidad, sin alterar los hechos pa’ beneficiar a tu cliente."
+    ]
+    if rol in ["Defensor", "Demandado"]:
+        consejos_eticos.append("Defiende a tu cliente con ética, evitando acusaciones falsas contra otros.")
+    elif rol in ["Fiscal", "Demandante"]:
+        consejos_eticos.append("Busca justicia con integridad, sin exagerar cargos pa’ presionar.")
+
     mensaje = (
         f"Puntuación: {puntaje}/{max_puntaje} ({int(porcentaje)}%)\n"
         f"Rol: {rol}\n"
@@ -357,7 +403,10 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
         f"Pruebas mencionadas: {pruebas_mencionadas}/{total_pruebas}\n"
         f"Testigos mencionados: {testigos_mencionados}/{total_testigos}\n"
         f"Argumentos lógicos: {argumentos_logicos}\n"
-        f"Variedad de palabras: {puntaje_variedad}"
+        f"Variedad de palabras: {puntaje_variedad}\n"
+        f"\nPuntos que fallaste:\n" + ("\n".join(fallos) if fallos else "Ninguno, ¡bien hecho!")\n"
+        f"\nCómo mejorar:\n" + ("\n".join(mejoras) if mejoras else "Sigue así, ¡perfecto!")\n"
+        f"\nConsejos de ética en audiencias:\n" + "\n".join(consejos_eticos)
     )
     return puntaje, mensaje
 
