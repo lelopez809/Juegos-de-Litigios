@@ -9,7 +9,8 @@ import os
 import json
 from werkzeug.utils import secure_filename
 import nltk
-from nltk.tokenize import sent_tokenize
+from nltk.tokenize import sent_tokenize, word_tokenize
+from nltk.corpus import stopwords
 
 # Configurar la ruta de los datos de NLTK en Render
 nltk_data_dir = os.path.join(os.path.dirname(__file__), 'nltk_data')
@@ -254,8 +255,15 @@ def get_user_info(user_id):
         return None
 
 def evaluar_alegato(alegato, caso, rol="Jugador"):
-    oraciones = sent_tokenize(alegato)
+    # Paso 1: Quitar stopwords
+    stop_words = set(stopwords.words('spanish'))
+    palabras = word_tokenize(alegato)
+    alegato_limpio = ' '.join([palabra for palabra in palabras if palabra.lower() not in stop_words])
+    
+    # Paso 2: Dividir en oraciones y tokenizar palabras
+    oraciones = sent_tokenize(alegato_limpio)
     num_oraciones = len(oraciones)
+    tokens = word_tokenize(alegato_limpio.lower())  # Tokens para buscar palabras clave
     dificultad = caso['dificultad']
     max_puntaje = 100
 
@@ -277,32 +285,45 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
     testigos_mencionados = 0
     argumentos_logicos = 0
 
-    alegato_lower = alegato.lower()
+    alegato_lower = alegato_limpio.lower()
+    # Búsqueda de pruebas con texto completo y tokens
     for prueba, detalle in caso['pruebas'].items():
-        if prueba.lower() in alegato_lower or detalle.lower() in alegato_lower:
+        prueba_lower = prueba.lower()
+        detalle_lower = detalle.lower()
+        if (prueba_lower in alegato_lower or detalle_lower in alegato_lower or 
+            any(prueba_lower in token or detalle_lower in token for token in tokens)):
             puntaje += 10
             pruebas_mencionadas += 1
-            if any("porque" in oracion or "prueba" in oracion for oracion in sent_tokenize(alegato_lower) if prueba.lower() in oracion):
+            if any("porque" in oracion or "prueba" in oracion for oracion in sent_tokenize(alegato_lower) if prueba_lower in oracion):
                 puntaje += 5
                 argumentos_logicos += 1
 
+    # Búsqueda de testigos con texto completo y tokens
     for testigo, detalle in caso['testigos'].items():
-        if testigo.lower() in alegato_lower or detalle.lower() in alegato_lower:
+        testigo_lower = testigo.lower()
+        detalle_lower = detalle.lower()
+        if (testigo_lower in alegato_lower or detalle_lower in alegato_lower or 
+            any(testigo_lower in token or detalle_lower in token for token in tokens)):
             puntaje += 8
             testigos_mencionados += 1
-            if any("según" in oracion or "declara" in oracion for oracion in sent_tokenize(alegato_lower) if testigo.lower() in oracion):
+            if any("según" in oracion or "declara" in oracion for oracion in sent_tokenize(alegato_lower) if testigo_lower in oracion):
                 puntaje += 4
                 argumentos_logicos += 1
 
-    if caso['ley'].lower() in alegato_lower:
+    # Búsqueda de ley y procedimiento con texto completo y tokens
+    ley_lower = caso['ley'].lower()
+    if (ley_lower in alegato_lower or any(ley_lower in token for token in tokens)):
         puntaje += 15
         if any("según el artículo" in oracion or "la ley" in oracion for oracion in sent_tokenize(alegato_lower)):
             puntaje += 5
-    if caso['procedimiento'].lower() in alegato_lower:
+    
+    proc_lower = caso['procedimiento'].lower()
+    if (proc_lower in alegato_lower or any(proc_lower in token for token in tokens)):
         puntaje += 10
         if any("el tribunal" in oracion or "solicito" in oracion for oracion in sent_tokenize(alegato_lower)):
             puntaje += 5
 
+    # Penalizaciones originales
     if pruebas_mencionadas < total_pruebas / 2:
         puntaje -= 10
     if testigos_mencionados < total_testigos / 2:
@@ -310,6 +331,21 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
     if len(oraciones) < 3:
         puntaje -= 5
 
+    # Paso 3: Frecuencia de palabras y ajuste por variedad
+    frecuencias = {}
+    for token in tokens:
+        frecuencias[token] = frecuencias.get(token, 0) + 1
+    max_repeticion = max(frecuencias.values()) if frecuencias else 0
+    num_palabras_unicas = len(frecuencias)
+
+    puntaje_variedad = 0
+    if max_repeticion > 5:
+        puntaje_variedad = -5  # Penalización por repetir mucho
+    elif num_palabras_unicas > 10:
+        puntaje_variedad = 5   # Bonus por variedad
+    puntaje += puntaje_variedad
+
+    # Limitar puntaje final
     puntaje = max(0, min(puntaje, max_puntaje))
     porcentaje = (puntaje / max_puntaje) * 100
 
@@ -320,7 +356,8 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
         f"Dificultad: {dificultad}/10 ({dificultad_texto})\n"
         f"Pruebas mencionadas: {pruebas_mencionadas}/{total_pruebas}\n"
         f"Testigos mencionados: {testigos_mencionados}/{total_testigos}\n"
-        f"Argumentos lógicos: {argumentos_logicos}"
+        f"Argumentos lógicos: {argumentos_logicos}\n"
+        f"Variedad de palabras: {puntaje_variedad}"
     )
     return puntaje, mensaje
 
