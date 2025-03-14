@@ -25,4 +25,37 @@
         </div>
     </div>
 </div>
+
+<!-- Sección de Ranking -->
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8">
+        <div class="card border-0 shadow-lg animate__animated animate__fadeInUp" style="background: linear-gradient(135deg, #003087, #0055a4); color: white;">
+            <div class="card-body p-5">
+                <h2 class="mb-4 fw-bold text-center" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">Ranking de Participantes</h2>
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Nombre</th>
+                                <th scope="col">Puntos</th>
+                                <th scope="col">Rango</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in all_users %}
+                            <tr>
+                                <th scope="row">{{ loop.index }}</th>
+                                <td>{{ user.real_name }}</td>
+                                <td>{{ user.points }}</td>
+                                <td>{{ user.rank }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
