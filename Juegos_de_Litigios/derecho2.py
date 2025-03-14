@@ -9,14 +9,24 @@ import os
 import json
 from werkzeug.utils import secure_filename
 import nltk
-import os
+from nltk.tokenize import sent_tokenize  # Import explícito para sent_tokenize
 
-# Configurar la ruta de los datos de NLTK
+# Configurar la ruta de los datos de NLTK en Render
 nltk_data_dir = os.path.join(os.path.dirname(__file__), 'nltk_data')
-if os.path.exists(nltk_data_dir):
-    nltk.data.path.append(nltk_data_dir)
-else:
-    print("Directorio nltk_data no encontrado. Asegúrate de incluirlo en el proyecto.")
+os.makedirs(nltk_data_dir, exist_ok=True)  # Crear el directorio si no existe
+nltk.data.path.append(nltk_data_dir)
+
+# Descargar datos de NLTK si no están presentes
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    print("Descargando punkt...")
+    nltk.download('punkt', download_dir=nltk_data_dir)
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    print("Descargando stopwords...")
+    nltk.download('stopwords', download_dir=nltk_data_dir)
 
 print("Iniciando la aplicación...")
 
@@ -274,9 +284,10 @@ def login_required(f):
     return wrap
 
 def evaluar_alegato(alegato, caso, rol="Jugador"):
-    puntaje = 0
-    dificultad = caso['dificultad']  # 0-10 desde la base de datos
-    max_puntaje = 100 + (dificultad * 10)  # 100 para 0, 200 para 10
+    oraciones = sent_tokenize(alegato)  # Ahora funciona con el import
+    puntos = len(oraciones) * 10  # Ejemplo simple
+    evaluacion = f"Evaluación: {puntos} puntos basados en {len(oraciones)} oraciones"
+    return puntos, evaluacion
 
     # Pesos ajustados según dificultad
     peso_pruebas_base = 0.40 - (dificultad * 0.015)  # 0.40 a 0.25
