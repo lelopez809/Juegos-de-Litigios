@@ -3,17 +3,23 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6">
-        <div class="card border-0 shadow-lg">
-            <div class="card-body text-center">
-                <h2 class="mb-4">Perfil de {{ user_info.real_name }}</h2>
-                <img src="{{ url_for('static', filename='uploads/' + user_info.photo_path) if user_info.photo_path else url_for('static', filename='default_avatar.png') }}" alt="Foto" class="rounded-circle mb-3" style="width: 150px; height: 150px;">
-                <p>Puntos: {{ user_info.points }} | Rango: {{ 'Principiante' if user_info.points <= 50 else 'Medio' if user_info.points <= 150 else 'Pro' }}</p>
+        <div class="card border-0 shadow-lg animate__animated animate__zoomIn" style="background: linear-gradient(135deg, #003087, #CE1126); color: white;">
+            <div class="card-body text-center p-5">
+                <h1 class="mb-4 fw-bold" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">Perfil de {{ user_info.real_name }}</h1>
+                <img src="{{ url_for('static', filename='uploads/' + user_info.photo_path) if user_info.photo_path else url_for('static', filename='default_avatar.png') }}" 
+                     alt="Foto de {{ user_info.real_name }}" 
+                     class="rounded-circle mb-4 shadow" 
+                     style="width: 180px; height: 180px; object-fit: cover; border: 4px solid #fff;">
+                <p class="lead mb-4" style="background: rgba(255, 255, 255, 0.1); padding: 10px; border-radius: 15px;">
+                    Puntos: <span class="fw-bold">{{ user_info.points }}</span> | 
+                    Rango: <span class="fw-bold">{{ 'Principiante' if user_info.points <= 50 else 'Medio' if user_info.points <= 150 else 'Pro' }}</span>
+                </p>
                 <form method="POST" enctype="multipart/form-data">
                     <div class="mb-3">
-                        <label for="photo" class="form-label">Subir Foto</label>
-                        <input type="file" name="photo" id="photo" class="form-control" accept="image/*">
+                        <label for="photo" class="form-label fw-bold" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">Actualizar Foto</label>
+                        <input type="file" name="photo" id="photo" class="form-control form-control-lg rounded-pill" accept="image/*">
                     </div>
-                    <button type="submit" class="btn btn-primary">Actualizar Foto</button>
+                    <button type="submit" class="btn btn-light btn-lg rounded-pill w-100 animate__animated animate__pulse animate__infinite">Guardar Cambios</button>
                 </form>
             </div>
         </div>
