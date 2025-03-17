@@ -147,16 +147,17 @@
 
             if (response.ok) {
                 if (data.oponente_unido) {
-                    // Mostrar notificación y detener el polling
-                    notificacionDiv.textContent = `¡${data.rol_oponente} se ha unido, el juicio comienza!`;
-                    notificacionDiv.style.color = '#28a745'; // Verde para indicar éxito
+                    notificacionDiv.textContent = '¡El juicio comienza, ambos jugadores están listos!';
+                    notificacionDiv.style.color = '#28a745';
                     clearInterval(pollingInterval);
+                } else if (data.rol_oponente) {
+                    notificacionDiv.textContent = `Esperando ${data.rol_oponente}...`;
                 } else {
                     notificacionDiv.textContent = 'Esperando oponente...';
                 }
             } else {
                 notificacionDiv.textContent = 'Error al consultar el estado';
-                notificacionDiv.style.color = '#dc3545'; // Rojo para errores
+                notificacionDiv.style.color = '#dc3545';
             }
         } catch (error) {
             notificacionDiv.textContent = 'Error de conexión';
