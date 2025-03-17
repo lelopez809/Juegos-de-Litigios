@@ -149,11 +149,13 @@
 
             if (response.ok) {
                 if (data.oponente_unido) {
-                    notificacionDiv.textContent = '¡El juicio comienza, ambos jugadores están listos!';
+                    notificacionDiv.textContent = `¡${data.fiscal_name} y ${data.defensor_name} están listos para el juicio!`;
                     notificacionDiv.style.color = '#28a745';
                     clearInterval(pollingInterval); // Detiene el polling cuando ambos están listos
-                } else if (data.rol_oponente) {
-                    notificacionDiv.textContent = `Esperando ${data.rol_oponente}...`;
+                } else if (data.fiscal_name || data.defensor_name) {
+                    const playerName = data.fiscal_name || data.defensor_name;
+                    const playerRole = data.fiscal_name ? ("Fiscal" || "Demandante") : ("Defensor" || "Demandado");
+                    notificacionDiv.textContent = `${playerName} está jugando como ${playerRole}, esperando ${data.rol_oponente}...`;
                 } else {
                     notificacionDiv.textContent = 'Esperando oponente...';
                 }
