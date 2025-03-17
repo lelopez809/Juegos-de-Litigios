@@ -646,6 +646,19 @@ def caso_multi(tabla, caso_id):
         }
         juicio = None
         rol = None
+        # Limpiar juicios obsoletos antes de verificar
+        cursor.execute("SELECT id, fiscal_id, defensor_id, estado FROM juicios WHERE tabla = ? AND caso_id = ? AND estado = 'pendiente'", (tabla, caso_id))
+        juicio = cursor.fetchone()
+        print(f"Juicio encontrado al inicio: {juicio}")
+        if juicio:
+            juicio_id, fiscal_id, defensor_id, estado = juicio
+            # Si el juicio tiene ambos roles ocupados pero el usuario actual no es ninguno, lo limpiamos
+            if fiscal_id is not None and defensor_id is not None and session['user_id'] not in [fiscal_id, defensor_id]:
+                print(f"Limpiando juicio obsoleto ID {juicio_id} para {tabla}/{caso_id}")
+                cursor.execute("DELETE FROM juicios WHERE id = ?", (juicio_id,))
+                conn.commit()
+                juicio = None  # Reseteamos el juicio para que se cree uno nuevo
+        # Continúa con la lógica existente
         if request.method == 'POST':
             rol_seleccionado = request.form.get('rol')
             valid_roles = ['Fiscal', 'Defensor'] if tabla == 'casos_penales' else ['Demandante', 'Demandado']
@@ -654,7 +667,7 @@ def caso_multi(tabla, caso_id):
                 return redirect(url_for('caso_multi', tabla=tabla, caso_id=caso_id))
             cursor.execute("SELECT id, fiscal_id, defensor_id, estado FROM juicios WHERE tabla = ? AND caso_id = ? AND estado = 'pendiente'", (tabla, caso_id))
             juicio = cursor.fetchone()
-            print(f"Juicio encontrado: {juicio}")  # Depuración
+            print(f"Juicio encontrado: {juicio}")
             if not juicio:
                 print(f"Creando nuevo juicio para {tabla}/{caso_id} con rol {rol_seleccionado}")
                 cursor.execute("INSERT INTO juicios (tabla, caso_id, fiscal_id, defensor_id) VALUES (?, ?, ?, ?)",
@@ -699,7 +712,11 @@ def caso_multi(tabla, caso_id):
             'casos_ninos': 'ninos'
         }
         endpoint = endpoint_map.get(tabla, 'inicio')
-        return render_template('casos_multi.html', caso=caso, user_info=user_info, juicio=juicio, rol=rol, tabla=tabla, endpoint=endpoint)
+        juicio_completo = False
+        if juicio:
+            juicio_id, fiscal_id, defensor_id, estado = juicio
+            juicio_completo = (fiscal_id is not None and defensor_id is not None)
+        return render_template('casos_multi.html', caso=caso, user_info=user_info, juicio=juicio, rol=rol, tabla=tabla, endpoint=endpoint, juicio_completo=juicio_completo)
     except sqlite3.Error as e:
         flash(f"Error en la base de datos: {e}")
         return redirect(url_for('inicio'))
@@ -789,18 +806,46 @@ def estado_juicio(tabla, caso_id):
         cursor = conn.cursor()
         cursor.execute("SELECT id, fiscal_id, defensor_id FROM juicios WHERE tabla = ? AND caso_id = ? AND estado = 'pendiente'", (tabla, caso_id))
         juicio = cursor.fetchone()
-        conn.close()
         if juicio:
             juicio_id, fiscal_id, defensor_id = juicio
+            # Verificar si el usuario actual es parte del juicio
+            user_in_juicio = session['user_id'] in [fiscal_id, defensor_id]
             oponente_unido = (fiscal_id is not None and defensor_id is not None)
             rol_oponente = None
-            if not oponente_unido:
+            fiscal_name = None
+            defensor_name = None
+            # Obtener nombres de los usuarios
+            if fiscal_id:
+                cursor.execute("SELECT username FROM usuarios WHERE id = ?", (fiscal_id,))
+                fiscal_result = cursor.fetchone()
+                fiscal_name = fiscal_result[0] if fiscal_result else "Desconocido"
+            if defensor_id:
+                cursor.execute("SELECT username FROM usuarios WHERE id = ?", (defensor_id,))
+                defensor_result = cursor.fetchone()
+                defensor_name = defensor_result[0] if defensor_result else "Desconocido"
+            # Determinar rol oponente si no están ambos roles ocupados
+            if not oponente_unido and user_in_juicio:
                 if fiscal_id and not defensor_id:
                     rol_oponente = "Defensor" if tabla == 'casos_penales' else "Demandado"
                 elif defensor_id and not fiscal_id:
                     rol_oponente = "Fiscal" if tabla == 'casos_penales' else "Demandante"
-            return jsonify({'oponente_unido': oponente_unido, 'rol_oponente': rol_oponente})
-        return jsonify({'oponente_unido': False, 'rol_oponente': None}), 200
+            # Si el usuario no está en el juicio, forzamos oponente_unido a false
+            if not user_in_juicio:
+                oponente_unido = False
+            conn.close()
+            return jsonify({
+                'oponente_unido': oponente_unido,
+                'rol_oponente': rol_oponente,
+                'fiscal_name': fiscal_name,
+                'defensor_name': defensor_name
+            })
+        conn.close()
+        return jsonify({
+            'oponente_unido': False,
+            'rol_oponente': None,
+            'fiscal_name': None,
+            'defensor_name': None
+        }), 200
     except sqlite3.Error as e:
         return jsonify({'error': f'Error en la base de datos: {e}'}), 500
 
