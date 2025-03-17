@@ -140,6 +140,7 @@
     const tabla = "{{ tabla }}";
     const casoId = "{{ caso.id }}";
     const notificacionDiv = document.getElementById('notificacion');
+    let hasReloaded = false; // Bandera para evitar recargas múltiples
 
     // Función para consultar el estado del juicio
     async function consultarEstado() {
@@ -148,12 +149,12 @@
             const data = await response.json();
 
             if (response.ok) {
-                if (data.oponente_unido) {
+                if (data.oponente_unido && !hasReloaded) {
                     notificacionDiv.textContent = '¡El juicio comienza, ambos jugadores están listos!';
                     notificacionDiv.style.color = '#28a745';
-                    clearInterval(pollingInterval);
-                    // Recargar la página para reflejar el estado actualizado
-                    window.location.reload();
+                    hasReloaded = true; // Marca que ya se recargó
+                    clearInterval(pollingInterval); // Detiene el polling
+                    window.location.reload(); // Recarga una sola vez
                 } else if (data.rol_oponente) {
                     notificacionDiv.textContent = `Esperando ${data.rol_oponente}...`;
                 } else {
