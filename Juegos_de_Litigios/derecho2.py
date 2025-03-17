@@ -774,6 +774,24 @@ def admin():
         except Exception as e:
             flash(f"Error al procesar los datos: {e}")
     return render_template('admin.html', user_info=user_info)
+    
+@app.route('/estado_juicio/<tabla>/<int:caso_id>')
+@login_required
+def estado_juicio(tabla, caso_id):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, fiscal_id, defensor_id FROM juicios WHERE tabla = ? AND caso_id = ? AND estado = 'pendiente'", (tabla, caso_id))
+        juicio = cursor.fetchone()
+        conn.close()
+        if juicio:
+            juicio_id, fiscal_id, defensor_id = juicio
+            oponente_unido = (fiscal_id is not None and defensor_id is not None)
+            rol_oponente = "Defensor" if fiscal_id and not defensor_id else "Fiscal" if defensor_id and not fiscal_id else None
+            return jsonify({'oponente_unido': oponente_unido, 'rol_oponente': rol_oponente})
+        return jsonify({'oponente_unido': False, 'rol_oponente': None}), 404
+    except sqlite3.Error as e:
+        return jsonify({'error': f'Error en la base de datos: {e}'}), 500
 
 if __name__ == '__main__':
     print("Inicializando base de datos...")
