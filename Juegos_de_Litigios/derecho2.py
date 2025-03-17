@@ -693,7 +693,7 @@ def caso_multi(tabla, caso_id):
             'casos_ninos': 'ninos'
         }
         endpoint = endpoint_map.get(tabla, 'inicio')
-        return render_template('caso_multi.html', caso=caso, user_info=user_info, juicio=juicio, rol=rol, tabla=tabla, endpoint=endpoint)
+        return render_template('casos_multi.html', caso=caso, user_info=user_info, juicio=juicio, rol=rol, tabla=tabla, endpoint=endpoint)
     except sqlite3.Error as e:
         flash(f"Error en la base de datos: {e}")
         return redirect(url_for('inicio'))
