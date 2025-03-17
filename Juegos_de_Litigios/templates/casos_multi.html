@@ -75,8 +75,8 @@
                         <i class="fas fa-pen-alt me-2"></i>Presenta tu Alegato
                     </h3>
                     <p class="text-center text-muted fs-6">
-                        {% if demandante_id and demandado_id %}
-                        Ambos roles ocupados, esperando evaluación...
+                        {% if juicio_completo %}
+                        Ambos roles ocupados, presenta tu alegato...
                         {% elif demandante_id %}
                         Esperando {{ rol2 }}...
                         {% elif demandado_id %}
@@ -86,12 +86,13 @@
                         {% endif %}
                     </p>
                     <div id="notificacion" class="text-center text-muted fs-6 mb-3">
-                        {% if not (demandante_id and demandado_id) %}
+                        {% if not juicio_completo %}
                         Esperando oponente...
                         {% endif %}
                     </div>
                     <form method="POST">
                         <input type="hidden" name="juicio_id" value="{{ juicio_id }}">
+                        {% if not juicio_completo %}
                         <div class="mb-3">
                             <label for="rol" class="form-label fw-bold text-dark fs-6">Rol</label>
                             <select name="rol" id="rol" class="form-select shadow-sm" required>
@@ -102,6 +103,7 @@
                                 {% endif %}
                             </select>
                         </div>
+                        {% endif %}
                         <div class="mb-3">
                             <label for="argumento" class="form-label fw-bold text-dark fs-6">Alegato</label>
                             <textarea name="argumento" id="argumento" class="form-control shadow-sm" rows="5" required placeholder="Escribe tu alegato aquí..."></textarea>
@@ -134,7 +136,7 @@
 
 <script>
     // Solo ejecutamos el polling si no hay resultado y ambos roles no están ocupados
-    {% if not resultado and not (demandante_id and demandado_id) %}
+    {% if not resultado and not juicio_completo %}
     const tabla = "{{ tabla }}";
     const casoId = "{{ caso.id }}";
     const notificacionDiv = document.getElementById('notificacion');
@@ -150,6 +152,8 @@
                     notificacionDiv.textContent = '¡El juicio comienza, ambos jugadores están listos!';
                     notificacionDiv.style.color = '#28a745';
                     clearInterval(pollingInterval);
+                    // Recargar la página para reflejar el estado actualizado
+                    window.location.reload();
                 } else if (data.rol_oponente) {
                     notificacionDiv.textContent = `Esperando ${data.rol_oponente}...`;
                 } else {
