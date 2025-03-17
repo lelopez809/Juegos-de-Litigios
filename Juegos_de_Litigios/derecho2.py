@@ -654,7 +654,9 @@ def caso_multi(tabla, caso_id):
                 return redirect(url_for('caso_multi', tabla=tabla, caso_id=caso_id))
             cursor.execute("SELECT id, fiscal_id, defensor_id, estado FROM juicios WHERE tabla = ? AND caso_id = ? AND estado = 'pendiente'", (tabla, caso_id))
             juicio = cursor.fetchone()
+            print(f"Juicio encontrado: {juicio}")  # Depuración
             if not juicio:
+                print(f"Creando nuevo juicio para {tabla}/{caso_id} con rol {rol_seleccionado}")
                 cursor.execute("INSERT INTO juicios (tabla, caso_id, fiscal_id, defensor_id) VALUES (?, ?, ?, ?)",
                                (tabla, caso_id, session['user_id'] if rol_seleccionado in ['Fiscal', 'Demandante'] else None,
                                 session['user_id'] if rol_seleccionado in ['Defensor', 'Demandado'] else None))
@@ -662,12 +664,16 @@ def caso_multi(tabla, caso_id):
                 juicio_id = cursor.lastrowid
                 juicio = (juicio_id, None if rol_seleccionado in ['Defensor', 'Demandado'] else session['user_id'],
                           None if rol_seleccionado in ['Fiscal', 'Demandante'] else session['user_id'], 'pendiente')
+                print(f"Juicio creado con ID: {juicio_id}")
             else:
                 juicio_id, fiscal_id, defensor_id, estado = juicio
+                print(f"Juicio existente: ID={juicio_id}, fiscal_id={fiscal_id}, defensor_id={defensor_id}")
                 if rol_seleccionado in ['Fiscal', 'Demandante'] and fiscal_id is None:
+                    print(f"Asignando fiscal_id={session['user_id']} a juicio {juicio_id}")
                     cursor.execute("UPDATE juicios SET fiscal_id = ? WHERE id = ?", (session['user_id'], juicio_id))
                     conn.commit()
                 elif rol_seleccionado in ['Defensor', 'Demandado'] and defensor_id is None:
+                    print(f"Asignando defensor_id={session['user_id']} a juicio {juicio_id}")
                     cursor.execute("UPDATE juicios SET defensor_id = ? WHERE id = ?", (session['user_id'], juicio_id))
                     conn.commit()
                 else:
@@ -787,9 +793,14 @@ def estado_juicio(tabla, caso_id):
         if juicio:
             juicio_id, fiscal_id, defensor_id = juicio
             oponente_unido = (fiscal_id is not None and defensor_id is not None)
-            rol_oponente = "Defensor" if fiscal_id and not defensor_id else "Fiscal" if defensor_id and not fiscal_id else None
+            rol_oponente = None
+            if not oponente_unido:
+                if fiscal_id and not defensor_id:
+                    rol_oponente = "Defensor" if tabla == 'casos_penales' else "Demandado"
+                elif defensor_id and not fiscal_id:
+                    rol_oponente = "Fiscal" if tabla == 'casos_penales' else "Demandante"
             return jsonify({'oponente_unido': oponente_unido, 'rol_oponente': rol_oponente})
-        return jsonify({'oponente_unido': False, 'rol_oponente': None}), 404
+        return jsonify({'oponente_unido': False, 'rol_oponente': None}), 200
     except sqlite3.Error as e:
         return jsonify({'error': f'Error en la base de datos: {e}'}), 500
 
