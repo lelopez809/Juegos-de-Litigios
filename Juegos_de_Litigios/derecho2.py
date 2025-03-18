@@ -868,7 +868,7 @@ def admin():
             flash(f"Error en la base de datos: {e}")
         except Exception as e:
             flash(f"Error al procesar los datos: {e}")
-    return render_template('admin.html', user_info=user_info)
+    return render_template('add_caso.html', user_info=user_info)
     
 @app.route('/estado_juicio/<tabla>/<int:caso_id>')
 @login_required
