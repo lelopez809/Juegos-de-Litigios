@@ -869,6 +869,76 @@ def admin():
         except Exception as e:
             flash(f"Error al procesar los datos: {e}")
     return render_template('add_caso.html', user_info=user_info)
+
+@app.route('/edit_caso/<string:tabla>/<int:caso_id>', methods=['GET', 'POST'])
+@admin_required
+def edit_caso(tabla, caso_id):
+    user_info = get_user_info(session['user_id'])
+    if not user_info:
+        return redirect(url_for('login'))
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT id, titulo, hechos, pruebas, testigos, defensa, ley, procedimiento, dificultad FROM {tabla} WHERE id = ?", (caso_id,))
+        caso_data = cursor.fetchone()
+        if not caso_data:
+            conn.close()
+            flash("Caso no encontrado")
+            return redirect(url_for('inicio'))
+        # Guardamos pruebas y testigos como strings JSON directamente
+        caso = {
+            'id': caso_data[0],
+            'titulo': caso_data[1],
+            'hechos': caso_data[2],
+            'pruebas': caso_data[3] if caso_data[3] else '{}',  # Mantenemos el string JSON
+            'testigos': caso_data[4] if caso_data[4] else '{}',  # Mantenemos el string JSON
+            'defensa': caso_data[5],
+            'ley': caso_data[6],
+            'procedimiento': caso_data[7],
+            'dificultad': caso_data[8]
+        }
+
+        if request.method == 'POST':
+            tabla = request.form.get('tabla')
+            titulo = request.form.get('titulo')
+            hechos = request.form.get('hechos')
+            pruebas = request.form.get('pruebas')
+            testigos = request.form.get('testigos')
+            defensa = request.form.get('defensa')
+            ley = request.form.get('ley')
+            procedimiento = request.form.get('procedimiento')
+            dificultad = int(request.form.get('dificultad', 0))
+
+            try:
+                # Validamos que pruebas y testigos sean JSON válidos
+                pruebas_dict = json.loads(pruebas) if pruebas else {}
+                testigos_dict = json.loads(testigos) if testigos else {}
+                pruebas_json = json.dumps(pruebas_dict)
+                testigos_json = json.dumps(testigos_dict)
+
+                cursor.execute(f"UPDATE {tabla} SET titulo = ?, hechos = ?, pruebas = ?, testigos = ?, defensa = ?, ley = ?, procedimiento = ?, dificultad = ? WHERE id = ?",
+                               (titulo, hechos, pruebas_json, testigos_json, defensa, ley, procedimiento, dificultad, caso_id))
+                conn.commit()
+                conn.close()
+                flash("Caso actualizado exitosamente!")
+                return redirect(url_for('inicio'))
+            except json.JSONDecodeError as e:
+                conn.rollback()
+                flash(f"Error en el formato JSON de pruebas o testigos: {e}")
+            except sqlite3.Error as e:
+                conn.rollback()
+                flash(f"Error en la base de datos: {e}")
+            except Exception as e:
+                conn.rollback()
+                flash(f"Error al actualizar el caso: {e}")
+            finally:
+                conn.close()
+
+        conn.close()
+        return render_template('edit_caso.html', user_info=user_info, caso=caso, tabla=tabla)
+    except sqlite3.Error as e:
+        flash(f"Error en la base de datos: {e}")
+        return redirect(url_for('inicio'))
     
 @app.route('/estado_juicio/<tabla>/<int:caso_id>')
 @login_required
