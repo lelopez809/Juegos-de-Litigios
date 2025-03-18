@@ -69,11 +69,11 @@
                     <div id="notificacion" class="text-center text-muted fs-6 mb-3">
                         {% if juicio %}
                             {% if demandante_id and not demandado_id %}
-                                {{ user_info.username }} está jugando como {{ rol1 }}, esperando {{ rol2 }}...
+                                {{ fiscal_name }} está jugando como {{ rol1 }}, esperando {{ rol2 }}...
                             {% elif demandado_id and not demandante_id %}
-                                {{ user_info.username }} está jugando como {{ rol2 }}, esperando {{ rol1 }}...
+                                {{ defensor_name }} está jugando como {{ rol2 }}, esperando {{ rol1 }}...
                             {% elif demandante_id and demandado_id %}
-                                ¡Juicio listo! Ambos roles ocupados.
+                                ¡Juicio listo! {{ rol1 }}: {{ fiscal_name }} vs {{ rol2 }}: {{ defensor_name }}
                             {% else %}
                                 Esperando oponente...
                             {% endif %}
@@ -114,6 +114,16 @@
                         </button>
                     </form>
                     {% endif %}
+
+                    <!-- Mostrar resultado -->
+                    {% if resultado %}
+                    <div class="alert alert-info mt-3" role="alert">
+                        <h4 class="alert-heading fw-bold text-info fs-5 mb-2">
+                            <i class="fas fa-check-circle me-2"></i>Alegatos enviados
+                        </h4>
+                        <p class="fs-6 mb-0" style="white-space: pre-wrap;">{{ resultado }}</p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -146,7 +156,7 @@
             const data = await response.json();
             if (response.ok) {
                 if (data.oponente_unido) {
-                    notificacionDiv.textContent = `¡${data.fiscal_name} y ${data.defensor_name} están listos para el juicio!`;
+                    notificacionDiv.textContent = `¡Juicio listo! {{ rol1 }}: ${data.fiscal_name} vs {{ rol2 }}: ${data.defensor_name}`;
                     notificacionDiv.style.color = '#28a745';
                 } else if (data.fiscal_name && !data.defensor_name) {
                     notificacionDiv.textContent = `${data.fiscal_name} está jugando como {{ rol1 }}, esperando {{ rol2 }}...`;
@@ -162,7 +172,6 @@
         }
     }
 
-    // Solo hacemos polling si ambos roles no están ocupados
     {% if not (demandante_id and demandado_id) %}
     const pollingInterval = setInterval(consultarEstado, 5000);
     consultarEstado();
