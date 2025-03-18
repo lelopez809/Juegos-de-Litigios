@@ -646,15 +646,15 @@ def caso_multi(tabla, caso_id):
         }
         juicio = None
         rol = None
-        # Limpiar juicios obsoletos antes de verificar
+        # Limpiar juicios obsoletos o inválidos antes de verificar
         cursor.execute("SELECT id, fiscal_id, defensor_id, estado FROM juicios WHERE tabla = ? AND caso_id = ? AND estado = 'pendiente'", (tabla, caso_id))
         juicio = cursor.fetchone()
         print(f"Juicio encontrado al inicio: {juicio}")
         if juicio:
             juicio_id, fiscal_id, defensor_id, estado = juicio
-            # Si el juicio tiene ambos roles ocupados y el usuario no es parte, lo limpiamos
-            if fiscal_id and defensor_id and session['user_id'] not in [fiscal_id, defensor_id]:
-                print(f"Limpiando juicio obsoleto ID {juicio_id} para {tabla}/{caso_id}")
+            # Limpiar si el juicio es inválido (mismo usuario en ambos roles o usuario no presente)
+            if (fiscal_id == defensor_id) or (fiscal_id and defensor_id and session['user_id'] not in [fiscal_id, defensor_id]):
+                print(f"Limpiando juicio inválido ID {juicio_id} para {tabla}/{caso_id}")
                 cursor.execute("DELETE FROM juicios WHERE id = ?", (juicio_id,))
                 conn.commit()
                 juicio = None  # Reseteamos para crear uno nuevo
@@ -716,7 +716,7 @@ def caso_multi(tabla, caso_id):
         juicio_completo = False
         if juicio:
             juicio_id, fiscal_id, defensor_id, estado = juicio
-            juicio_completo = (fiscal_id is not None and defensor_id is not None)
+            juicio_completo = (fiscal_id is not None and defensor_id is not None and fiscal_id != defensor_id)  # Aseguramos que no sean el mismo usuario
         return render_template('casos_multi.html', caso=caso, user_info=user_info, juicio=juicio, rol=rol, tabla=tabla, endpoint=endpoint, juicio_completo=juicio_completo)
     except sqlite3.Error as e:
         flash(f"Error en la base de datos: {e}")
