@@ -408,7 +408,7 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
     )
     return puntaje, mensaje
 
-@app.route('/caso_multi/<tabla>/<int:caso_id>', methods=['GET', 'POST'])
+@app.route('/casos_multi/<tabla>/<int:caso_id>', methods=['GET', 'POST'])
 @login_required
 def caso_multi(tabla, caso_id):
     user_info = get_user_info(session['user_id'])
