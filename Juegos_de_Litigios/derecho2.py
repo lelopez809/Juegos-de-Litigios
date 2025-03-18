@@ -652,7 +652,6 @@ def caso_multi(tabla, caso_id):
         defensor_name = None
         resultado = None
 
-        # Verificar juicio existente
         cursor.execute("SELECT id, fiscal_id, defensor_id, estado, fiscal_alegato, defensor_alegato, fiscal_puntos, defensor_puntos, ganador_id FROM juicios WHERE tabla = ? AND caso_id = ? AND estado IN ('pendiente', 'completado')", (tabla, caso_id))
         juicio = cursor.fetchone()
         print(f"Juicio encontrado al inicio: {juicio}")
@@ -667,10 +666,12 @@ def caso_multi(tabla, caso_id):
             else:
                 demandante_id = fiscal_id
                 demandado_id = defensor_id
-                if fiscal_id == session['user_id']:
+                if fiscal_id == session['user_id'] and not fiscal_alegato:
                     rol = "Fiscal" if tabla == 'casos_penales' else "Demandante"
-                elif defensor_id == session['user_id']:
+                elif defensor_id == session['user_id'] and not defensor_alegato:
                     rol = "Defensor" if tabla == 'casos_penales' else "Demandado"
+                elif fiscal_id == session['user_id'] and defensor_id == session['user_id']:
+                    rol = "Defensor" if fiscal_alegato and not defensor_alegato else "Fiscal"
                 if fiscal_id:
                     cursor.execute("SELECT username FROM usuarios WHERE id = ?", (fiscal_id,))
                     fiscal_name = cursor.fetchone()[0]
@@ -678,7 +679,7 @@ def caso_multi(tabla, caso_id):
                     cursor.execute("SELECT username FROM usuarios WHERE id = ?", (defensor_id,))
                     defensor_name = cursor.fetchone()[0]
                 if estado == 'completado' and fiscal_puntos is not None and defensor_puntos is not None:
-                    ganador_name = fiscal_name if ganador_id == fiscal_id else defensor_name
+                    ganador_name = fiscal_name if ganador_id == fiscal_id else defensor_name if ganador_id == defensor_id else "Empate"
                     resultado = (f"Fiscal ({fiscal_name}): {fiscal_alegato} - Puntos: {fiscal_puntos}\n"
                                 f"Defensor ({defensor_name}): {defensor_alegato} - Puntos: {defensor_puntos}\n"
                                 f"Ganador: {ganador_name}")
@@ -686,7 +687,6 @@ def caso_multi(tabla, caso_id):
                     resultado = (f"Fiscal ({fiscal_name}): {fiscal_alegato or 'No enviado aún'}\n"
                                 f"Defensor ({defensor_name}): {defensor_alegato or 'No enviado aún'}")
 
-        # Procesar el formulario POST
         if request.method == 'POST':
             print(f"POST recibido con datos: {request.form}")
             rol_seleccionado = request.form.get('rol')
@@ -725,13 +725,21 @@ def caso_multi(tabla, caso_id):
                 juicio_id, fiscal_id, defensor_id, estado, fiscal_alegato, defensor_alegato, fiscal_puntos, defensor_puntos, ganador_id = juicio
                 if fiscal_id and defensor_id and estado == 'pendiente':
                     print(f"Procesando alegato para juicio {juicio_id}: {argumento}")
-                    if session['user_id'] == fiscal_id:
+                    if session['user_id'] == fiscal_id and not fiscal_alegato:
                         cursor.execute("UPDATE juicios SET fiscal_alegato = ? WHERE id = ?", (argumento, juicio_id))
-                    elif session['user_id'] == defensor_id:
+                        print(f"Alegato asignado a fiscal: {argumento}")
+                    elif session['user_id'] == defensor_id and not defensor_alegato:
                         cursor.execute("UPDATE juicios SET defensor_alegato = ? WHERE id = ?", (argumento, juicio_id))
+                        print(f"Alegato asignado a defensor: {argumento}")
+                    elif fiscal_id == defensor_id == session['user_id']:  # Mismo usuario alternando
+                        if fiscal_alegato and not defensor_alegato:
+                            cursor.execute("UPDATE juicios SET defensor_alegato = ? WHERE id = ?", (argumento, juicio_id))
+                            print(f"Alegato asignado a defensor (alternado): {argumento}")
+                        elif not fiscal_alegato:
+                            cursor.execute("UPDATE juicios SET fiscal_alegato = ? WHERE id = ?", (argumento, juicio_id))
+                            print(f"Alegato asignado a fiscal (alternado): {argumento}")
                     conn.commit()
 
-                    # Verificar si ambos alegatos están presentes y evaluar
                     cursor.execute("SELECT fiscal_alegato, defensor_alegato FROM juicios WHERE id = ?", (juicio_id,))
                     fiscal_alegato, defensor_alegato = cursor.fetchone()
                     if fiscal_alegato and defensor_alegato:
@@ -747,7 +755,7 @@ def caso_multi(tabla, caso_id):
                                     f"Ganador: {ganador_name}")
                         flash("Alegatos evaluados y ganador determinado")
                     else:
-                        flash("Alegato enviado con éxito, esperando el otro jugador")
+                        flash("Alegato enviado con éxito, esperando el otro alegato")
                         resultado = (f"Fiscal ({fiscal_name}): {fiscal_alegato or 'No enviado aún'}\n"
                                     f"Defensor ({defensor_name}): {defensor_alegato or 'No enviado aún'}")
                 else:
@@ -759,7 +767,6 @@ def caso_multi(tabla, caso_id):
 
             return redirect(url_for('caso_multi', tabla=tabla, caso_id=caso_id))
 
-        # Si es GET, actualizar estado
         if not juicio:
             cursor.execute("SELECT id, fiscal_id, defensor_id, estado, fiscal_alegato, defensor_alegato, fiscal_puntos, defensor_puntos, ganador_id FROM juicios WHERE tabla = ? AND caso_id = ? AND estado IN ('pendiente', 'completado')", (tabla, caso_id))
             juicio = cursor.fetchone()
@@ -767,10 +774,12 @@ def caso_multi(tabla, caso_id):
             juicio_id, fiscal_id, defensor_id, estado, fiscal_alegato, defensor_alegato, fiscal_puntos, defensor_puntos, ganador_id = juicio
             demandante_id = fiscal_id
             demandado_id = defensor_id
-            if fiscal_id == session['user_id']:
+            if fiscal_id == session['user_id'] and not fiscal_alegato:
                 rol = "Fiscal" if tabla == 'casos_penales' else "Demandante"
-            elif defensor_id == session['user_id']:
+            elif defensor_id == session['user_id'] and not defensor_alegato:
                 rol = "Defensor" if tabla == 'casos_penales' else "Demandado"
+            elif fiscal_id == defensor_id == session['user_id']:
+                rol = "Defensor" if fiscal_alegato and not defensor_alegato else "Fiscal"
             if fiscal_id:
                 cursor.execute("SELECT username FROM usuarios WHERE id = ?", (fiscal_id,))
                 fiscal_name = cursor.fetchone()[0]
