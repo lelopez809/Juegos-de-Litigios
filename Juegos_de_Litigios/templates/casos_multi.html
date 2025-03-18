@@ -103,7 +103,7 @@
                     {% endif %}
 
                     <!-- Formulario para enviar alegato -->
-                    {% if demandante_id and demandado_id %}
+                    {% if demandante_id and demandado_id and juicio[3] == 'pendiente' %}
                     <form method="POST" action="{{ url_for('caso_multi', tabla=tabla, caso_id=caso.id) }}" class="mt-3">
                         <div class="mb-3">
                             <label for="argumento" class="form-label fw-bold text-dark fs-6">Alegato</label>
@@ -117,9 +117,9 @@
 
                     <!-- Mostrar resultado -->
                     {% if resultado %}
-                    <div class="alert alert-info mt-3" role="alert">
-                        <h4 class="alert-heading fw-bold text-info fs-5 mb-2">
-                            <i class="fas fa-check-circle me-2"></i>Alegatos enviados
+                    <div class="alert {% if juicio[3] == 'completado' %}alert-success{% else %}alert-info{% endif %} mt-3" role="alert">
+                        <h4 class="alert-heading fw-bold {% if juicio[3] == 'completado' %}text-success{% else %}text-info{% endif %} fs-5 mb-2">
+                            <i class="fas fa-check-circle me-2"></i>{% if juicio[3] == 'completado' %}Juicio Completado{% else %}Alegatos Enviados{% endif %}
                         </h4>
                         <p class="fs-6 mb-0" style="white-space: pre-wrap;">{{ resultado }}</p>
                     </div>
