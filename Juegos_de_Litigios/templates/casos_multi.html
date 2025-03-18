@@ -92,9 +92,10 @@
                         {% endif %}
                     </div>
 
-                    <!-- Botón para reiniciar juicio -->
+                    <!-- Botón para reiniciar juicio (debug incluido) -->
                     {% if juicio %}
                     <div class="mb-3 text-center">
+                        <p class="text-muted fs-7 mb-1">Debug: juicio={{ juicio }}, estado={{ juicio[3] if juicio else 'None' }}</p>
                         <form method="POST" action="{{ url_for('caso_multi', tabla=tabla, caso_id=caso.id) }}">
                             <input type="hidden" name="reiniciar" value="true">
                             <button type="submit" class="btn btn-outline-danger w-100 shadow-sm">
