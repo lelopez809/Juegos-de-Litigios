@@ -617,7 +617,6 @@ def caso(tabla, caso_id):
     except Exception as e:
         flash(f"Error inesperado: {str(e)}")
         return redirect(url_for('inicio'))
-
 @app.route('/caso_multi/<tabla>/<int:caso_id>', methods=['GET', 'POST'])
 @login_required
 def caso_multi(tabla, caso_id):
@@ -692,6 +691,16 @@ def caso_multi(tabla, caso_id):
                         print(f"Asignando defensor_id={session['user_id']} a juicio {juicio_id}")
                         cursor.execute("UPDATE juicios SET defensor_id = ? WHERE id = ?", (session['user_id'], juicio_id))
                         conn.commit()
+                    # Permitir al mismo usuario tomar el otro rol si aún no está ocupado
+                    elif session['user_id'] not in [fiscal_id, defensor_id] or (fiscal_id == session['user_id'] and not defensor_id) or (defensor_id == session['user_id'] and not fiscal_id):
+                        if rol_seleccionado in ['Fiscal', 'Demandante'] and not fiscal_id:
+                            print(f"Asignando fiscal_id={session['user_id']} a juicio {juicio_id}")
+                            cursor.execute("UPDATE juicios SET fiscal_id = ? WHERE id = ?", (session['user_id'], juicio_id))
+                            conn.commit()
+                        elif rol_seleccionado in ['Defensor', 'Demandado'] and not defensor_id:
+                            print(f"Asignando defensor_id={session['user_id']} a juicio {juicio_id}")
+                            cursor.execute("UPDATE juicios SET defensor_id = ? WHERE id = ?", (session['user_id'], juicio_id))
+                            conn.commit()
                     else:
                         flash("El rol seleccionado ya está ocupado o no puedes unirte a este juicio.")
                         return redirect(url_for('caso_multi', tabla=tabla, caso_id=caso_id))
