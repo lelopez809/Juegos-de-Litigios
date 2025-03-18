@@ -106,7 +106,7 @@
                     {% if demandante_id and demandado_id and juicio[3] == 'pendiente' %}
                     <form method="POST" action="{{ url_for('caso_multi', tabla=tabla, caso_id=caso.id) }}" class="mt-3">
                         <div class="mb-3">
-                            <label for="argumento" class="form-label fw-bold text-dark fs-6">Alegato</label>
+                            <label for="argumento" class="form-label fw-bold text-dark fs-6">Alegato como {{ rol }}</label>
                             <textarea name="argumento" id="argumento" class="form-control shadow-sm" rows="5" placeholder="Escribe tu alegato aquí..."></textarea>
                         </div>
                         <button type="submit" class="btn btn-primary w-100 shadow-sm">
