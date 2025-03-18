@@ -838,7 +838,7 @@ def profile():
     
     return render_template('profile.html', user_info=user_info, all_users=all_users)
 
-@app.route('/admin', methods=['GET', 'POST'])
+@app.route('/add_caso', methods=['GET', 'POST'])
 @admin_required
 def admin():
     user_info = get_user_info(session['user_id'])
