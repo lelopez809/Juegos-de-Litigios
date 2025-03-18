@@ -87,19 +87,24 @@
                     </p>
                     <div id="notificacion" class="text-center text-muted fs-6 mb-3">
                         {% if not juicio_completo %}
+                        {% if rol %}
+                        {{ user_info.username }} está jugando como {{ rol }}, esperando {{ rol2 if rol == rol1 else rol1 }}...
+                        {% else %}
                         Esperando oponente...
+                        {% endif %}
                         {% endif %}
                     </div>
                     <form method="POST">
-                        <input type="hidden" name="juicio_id" value="{{ juicio_id }}">
-                        {% if not juicio_completo %}
+                        <input type="hidden" name="juicio_id" value="{{ juicio[0] if juicio else '' }}">
+                        {% if not rol and not juicio_completo %}
                         <div class="mb-3">
                             <label for="rol" class="form-label fw-bold text-dark fs-6">Rol</label>
                             <select name="rol" id="rol" class="form-select shadow-sm" required>
                                 {% if not demandante_id %}
-                                <option value="Fiscal">Fiscal</option>
-                                {% elif not demandado_id %}
-                                <option value="Defensor">Defensor</option>
+                                <option value="{{ rol1 }}">{{ rol1 }}</option>
+                                {% endif %}
+                                {% if not demandado_id %}
+                                <option value="{{ rol2 }}">{{ rol2 }}</option>
                                 {% endif %}
                             </select>
                         </div>
@@ -154,7 +159,7 @@
                     clearInterval(pollingInterval); // Detiene el polling cuando ambos están listos
                 } else if (data.fiscal_name || data.defensor_name) {
                     const playerName = data.fiscal_name || data.defensor_name;
-                    const playerRole = data.fiscal_name ? "Fiscal" : "Defensor";
+                    const playerRole = data.fiscal_name ? "{{ rol1 }}" : "{{ rol2 }}";
                     notificacionDiv.textContent = `${playerName} está jugando como ${playerRole}, esperando ${data.rol_oponente}...`;
                 } else {
                     notificacionDiv.textContent = 'Esperando oponente...';
