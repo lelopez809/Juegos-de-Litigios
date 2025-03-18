@@ -92,8 +92,8 @@
                         {% endif %}
                     </div>
 
-                    <!-- Botón para reiniciar juicio (debug incluido) -->
-                    {% if juicio %}
+                    <!-- Botón para reiniciar juicio (ajustado a estado 'completado') -->
+                    {% if juicio and juicio[3] == 'completado' %}
                     <div class="mb-3 text-center">
                         <p class="text-muted fs-7 mb-1">Debug: juicio={{ juicio }}, estado={{ juicio[3] if juicio else 'None' }}</p>
                         <form method="POST" action="{{ url_for('caso_multi', tabla=tabla, caso_id=caso.id) }}">
