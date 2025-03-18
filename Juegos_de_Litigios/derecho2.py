@@ -646,7 +646,9 @@ def caso_multi(tabla, caso_id):
         }
         juicio = None
         rol = None
-        # Limpiar juicios obsoletos o inválidos antes de verificar
+        demandante_id = None
+        demandado_id = None
+        # Limpiar juicios obsoletos o inválidos
         cursor.execute("SELECT id, fiscal_id, defensor_id, estado FROM juicios WHERE tabla = ? AND caso_id = ? AND estado = 'pendiente'", (tabla, caso_id))
         juicio = cursor.fetchone()
         print(f"Juicio encontrado al inicio: {juicio}")
@@ -657,7 +659,10 @@ def caso_multi(tabla, caso_id):
                 print(f"Limpiando juicio inválido ID {juicio_id} para {tabla}/{caso_id}")
                 cursor.execute("DELETE FROM juicios WHERE id = ?", (juicio_id,))
                 conn.commit()
-                juicio = None  # Reseteamos para crear uno nuevo
+                juicio = None
+            else:
+                demandante_id = fiscal_id
+                demandado_id = defensor_id
         # Procesar el formulario POST
         if request.method == 'POST':
             rol_seleccionado = request.form.get('rol')
@@ -692,13 +697,14 @@ def caso_multi(tabla, caso_id):
                     flash("El rol seleccionado ya está ocupado o no puedes unirte a este juicio.")
                     return redirect(url_for('caso_multi', tabla=tabla, caso_id=caso_id))
             rol = rol_seleccionado
-            # Redirigir para reflejar el nuevo estado
             return redirect(url_for('caso_multi', tabla=tabla, caso_id=caso_id))
         else:
             cursor.execute("SELECT id, fiscal_id, defensor_id, estado FROM juicios WHERE tabla = ? AND caso_id = ? AND estado = 'pendiente'", (tabla, caso_id))
             juicio = cursor.fetchone()
             if juicio:
                 juicio_id, fiscal_id, defensor_id, estado = juicio
+                demandante_id = fiscal_id
+                demandado_id = defensor_id
                 if fiscal_id == session['user_id']:
                     rol = "Fiscal" if tabla == 'casos_penales' else "Demandante"
                 elif defensor_id == session['user_id']:
@@ -716,8 +722,11 @@ def caso_multi(tabla, caso_id):
         juicio_completo = False
         if juicio:
             juicio_id, fiscal_id, defensor_id, estado = juicio
-            juicio_completo = (fiscal_id is not None and defensor_id is not None and fiscal_id != defensor_id)  # Aseguramos que no sean el mismo usuario
-        return render_template('casos_multi.html', caso=caso, user_info=user_info, juicio=juicio, rol=rol, tabla=tabla, endpoint=endpoint, juicio_completo=juicio_completo)
+            juicio_completo = (fiscal_id is not None and defensor_id is not None and fiscal_id != defensor_id)
+        # Definir roles para el formulario
+        rol1 = "Fiscal" if tabla == 'casos_penales' else "Demandante"
+        rol2 = "Defensor" if tabla == 'casos_penales' else "Demandado"
+        return render_template('casos_multi.html', caso=caso, user_info=user_info, juicio=juicio, rol=rol, tabla=tabla, endpoint=endpoint, juicio_completo=juicio_completo, demandante_id=demandante_id, demandado_id=demandado_id, rol1=rol1, rol2=rol2)
     except sqlite3.Error as e:
         flash(f"Error en la base de datos: {e}")
         return redirect(url_for('inicio'))
