@@ -99,7 +99,7 @@
                         {% if not juicio_completo %}
                         <div class="mb-3">
                             <label for="rol" class="form-label fw-bold text-dark fs-6">Rol</label>
-                            <select name="rol" id="rol" class="form-select shadow-sm" {% if rol %}disabled{% endif %}>
+                            <select name="rol" id="rol" class="form-select shadow-sm">
                                 {% if not demandante_id %}
                                 <option value="{{ rol1 }}" {% if rol == rol1 %}selected{% endif %}>{{ rol1 }}</option>
                                 {% endif %}
@@ -111,7 +111,7 @@
                         {% endif %}
                         <div class="mb-3">
                             <label for="argumento" class="form-label fw-bold text-dark fs-6">Alegato</label>
-                            <textarea name="argumento" id="argumento" class="form-control shadow-sm" rows="5" required placeholder="Escribe tu alegato aquí..." {% if not juicio_completo %}disabled{% endif %}></textarea>
+                            <textarea name="argumento" id="argumento" class="form-control shadow-sm" rows="5" placeholder="Escribe tu alegato aquí..." {% if not juicio_completo %}disabled{% endif %}></textarea>
                         </div>
                         <button type="submit" class="btn btn-primary w-100 shadow-sm" {% if not juicio_completo %}disabled{% endif %}>
                             <i class="fas fa-paper-plane me-2"></i>Enviar Alegato
