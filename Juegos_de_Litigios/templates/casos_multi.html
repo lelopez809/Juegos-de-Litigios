@@ -63,57 +63,53 @@
         <div class="col-md-6">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body p-3">
-                    {% if resultado %}
-                    <div class="alert alert-info h-100 d-flex flex-column justify-content-center p-3" role="alert">
-                        <h4 class="alert-heading fw-bold text-info fs-5 mb-2">
-                            <i class="fas fa-check-circle me-2"></i>Resultado
-                        </h4>
-                        <p class="fs-6 mb-0" style="white-space: pre-wrap;">{{ resultado | safe }}</p>
-                    </div>
-                    {% else %}
                     <h3 class="text-center fw-bold mb-3 text-primary fs-5">
                         <i class="fas fa-pen-alt me-2"></i>Presenta tu Alegato
                     </h3>
-                    <p class="text-center text-muted fs-6">
-                        {% if juicio_completo %}
-                        Ambos roles ocupados, presenta tu alegato...
-                        {% elif demandante_id %}
-                        Esperando {{ rol2 }}...
-                        {% elif demandado_id %}
-                        Esperando {{ rol1 }}...
-                        {% else %}
-                        Elige tu rol y espera a un oponente
-                        {% endif %}
-                    </p>
                     <div id="notificacion" class="text-center text-muted fs-6 mb-3">
-                        {% if not juicio_completo %}
-                        {% if rol %}
-                        {{ user_info.username }} está jugando como {{ rol }}, esperando {{ rol2 if rol == rol1 else rol1 }}...
+                        {% if juicio %}
+                            {% if demandante_id and not demandado_id %}
+                                {{ user_info.username }} está jugando como {{ rol1 }}, esperando {{ rol2 }}...
+                            {% elif demandado_id and not demandante_id %}
+                                {{ user_info.username }} está jugando como {{ rol2 }}, esperando {{ rol1 }}...
+                            {% elif demandante_id and demandado_id %}
+                                ¡Juicio listo! Ambos roles ocupados.
+                            {% else %}
+                                Esperando oponente...
+                            {% endif %}
                         {% else %}
-                        Esperando oponente...
-                        {% endif %}
+                            Esperando oponente...
                         {% endif %}
                     </div>
-                    <form method="POST">
-                        <input type="hidden" name="juicio_id" value="{{ juicio[0] if juicio else '' }}">
-                        {% if not juicio_completo %}
+
+                    <!-- Formulario para elegir rol -->
+                    {% if not (demandante_id and demandado_id) %}
+                    <form method="POST" action="{{ url_for('caso_multi', tabla=tabla, caso_id=caso.id) }}">
                         <div class="mb-3">
-                            <label for="rol" class="form-label fw-bold text-dark fs-6">Rol</label>
+                            <label for="rol" class="form-label fw-bold text-dark fs-6">Elige tu rol</label>
                             <select name="rol" id="rol" class="form-select shadow-sm">
                                 {% if not demandante_id %}
-                                <option value="{{ rol1 }}" {% if rol == rol1 %}selected{% endif %}>{{ rol1 }}</option>
+                                <option value="{{ rol1 }}">{{ rol1 }}</option>
                                 {% endif %}
                                 {% if not demandado_id %}
-                                <option value="{{ rol2 }}" {% if rol == rol2 %}selected{% endif %}>{{ rol2 }}</option>
+                                <option value="{{ rol2 }}">{{ rol2 }}</option>
                                 {% endif %}
                             </select>
                         </div>
-                        {% endif %}
+                        <button type="submit" class="btn btn-primary w-100 shadow-sm">
+                            <i class="fas fa-check me-2"></i>Elegir Rol
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    <!-- Formulario para enviar alegato -->
+                    {% if demandante_id and demandado_id %}
+                    <form method="POST" action="{{ url_for('caso_multi', tabla=tabla, caso_id=caso.id) }}" class="mt-3">
                         <div class="mb-3">
                             <label for="argumento" class="form-label fw-bold text-dark fs-6">Alegato</label>
-                            <textarea name="argumento" id="argumento" class="form-control shadow-sm" rows="5" placeholder="Escribe tu alegato aquí..." {% if not juicio_completo %}disabled{% endif %}></textarea>
+                            <textarea name="argumento" id="argumento" class="form-control shadow-sm" rows="5" placeholder="Escribe tu alegato aquí..."></textarea>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100 shadow-sm" {% if not juicio_completo %}disabled{% endif %}>
+                        <button type="submit" class="btn btn-primary w-100 shadow-sm">
                             <i class="fas fa-paper-plane me-2"></i>Enviar Alegato
                         </button>
                     </form>
@@ -140,33 +136,25 @@
 </style>
 
 <script>
-    // Solo ejecutamos el polling si no hay resultado y ambos roles no están ocupados
-    {% if not resultado and not juicio_completo %}
     const tabla = "{{ tabla }}";
     const casoId = "{{ caso.id }}";
     const notificacionDiv = document.getElementById('notificacion');
 
-    // Función para consultar el estado del juicio
     async function consultarEstado() {
         try {
             const response = await fetch(`/estado_juicio/${tabla}/${casoId}`);
             const data = await response.json();
-
             if (response.ok) {
                 if (data.oponente_unido) {
                     notificacionDiv.textContent = `¡${data.fiscal_name} y ${data.defensor_name} están listos para el juicio!`;
                     notificacionDiv.style.color = '#28a745';
-                    clearInterval(pollingInterval); // Detiene el polling cuando ambos están listos
-                } else if (data.fiscal_name || data.defensor_name) {
-                    const playerName = data.fiscal_name || data.defensor_name;
-                    const playerRole = data.fiscal_name ? "{{ rol1 }}" : "{{ rol2 }}";
-                    notificacionDiv.textContent = `${playerName} está jugando como ${playerRole}, esperando ${data.rol_oponente}...`;
+                } else if (data.fiscal_name && !data.defensor_name) {
+                    notificacionDiv.textContent = `${data.fiscal_name} está jugando como {{ rol1 }}, esperando {{ rol2 }}...`;
+                } else if (data.defensor_name && !data.fiscal_name) {
+                    notificacionDiv.textContent = `${data.defensor_name} está jugando como {{ rol2 }}, esperando {{ rol1 }}...`;
                 } else {
                     notificacionDiv.textContent = 'Esperando oponente...';
                 }
-            } else {
-                notificacionDiv.textContent = 'Error al consultar el estado';
-                notificacionDiv.style.color = '#dc3545';
             }
         } catch (error) {
             notificacionDiv.textContent = 'Error de conexión';
@@ -174,10 +162,9 @@
         }
     }
 
-    // Iniciar el polling cada 5 segundos
+    // Solo hacemos polling si ambos roles no están ocupados
+    {% if not (demandante_id and demandado_id) %}
     const pollingInterval = setInterval(consultarEstado, 5000);
-
-    // Ejecutar una consulta inmediata al cargar la página
     consultarEstado();
     {% endif %}
 </script>
