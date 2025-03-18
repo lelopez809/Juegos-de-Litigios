@@ -435,10 +435,27 @@ def caso_multi(tabla, caso_id):
             'dificultad': caso_data[8]
         }
 
-        # Consultar juicio existente
+        # Depuración detallada
+        print(f"Conectado a DB en {DB_PATH}")
+        print(f"Buscando juicio con tabla={tabla}, caso_id={caso_id}")
         cursor.execute("SELECT id, fiscal_id, defensor_id, estado, fiscal_alegato, defensor_alegato, fiscal_puntos, defensor_puntos, ganador_id FROM juicios WHERE tabla = ? AND caso_id = ?", (tabla, caso_id))
         juicio = cursor.fetchone()
-        print(f"Juicio desde DB: {juicio}")
+        print(f"Resultado de consulta específica: {juicio}")
+
+        # Verificar toda la tabla pa’ debug
+        cursor.execute("SELECT * FROM juicios")
+        all_juicios = cursor.fetchall()
+        print(f"Todos los juicios en DB: {all_juicios}")
+
+        # Forzar creación si no hay juicio
+        if not juicio:
+            print(f"No se encontró juicio, creando uno por defecto para {tabla}/{caso_id}")
+            cursor.execute("INSERT INTO juicios (tabla, caso_id, fiscal_id, defensor_id, estado) VALUES (?, ?, ?, ?, ?)",
+                           (tabla, caso_id, None, None, 'pendiente'))
+            conn.commit()
+            cursor.execute("SELECT id, fiscal_id, defensor_id, estado, fiscal_alegato, defensor_alegato, fiscal_puntos, defensor_puntos, ganador_id FROM juicios WHERE tabla = ? AND caso_id = ?", (tabla, caso_id))
+            juicio = cursor.fetchone()
+            print(f"Juicio creado por defecto: {juicio}")
 
         # Definir rol1 y rol2 según tabla
         rol1 = "Fiscal" if tabla == 'casos_penales' else "Demandante"
@@ -451,15 +468,6 @@ def caso_multi(tabla, caso_id):
         fiscal_name = None
         defensor_name = None
         resultado = None
-
-        # Limpiar juicio si el usuario no está involucrado
-        if juicio and juicio[3] == 'pendiente':
-            juicio_id, fiscal_id, defensor_id, estado, fiscal_alegato, defensor_alegato, fiscal_puntos, defensor_puntos, ganador_id = juicio
-            if session['user_id'] not in [fiscal_id, defensor_id]:
-                print(f"Borrando juicio ID {juicio_id} porque usuario no está involucrado")
-                cursor.execute("DELETE FROM juicios WHERE id = ?", (juicio_id,))
-                conn.commit()
-                juicio = None
 
         # Cargar datos del juicio si existe
         if juicio:
@@ -489,33 +497,31 @@ def caso_multi(tabla, caso_id):
                 resultado = (f"Fiscal ({fiscal_name}): {fiscal_alegato or 'No enviado aún'}\n"
                             f"Defensor ({defensor_name}): {defensor_alegato or 'No enviado aún'}")
 
-        # Manejar POST
+        # Manejar POST (simplificado pa’ probar)
         if request.method == 'POST':
             rol_seleccionado = request.form.get('rol')
             argumento = request.form.get('argumento')
             reiniciar = request.form.get('reiniciar')
             valid_roles = ['Fiscal', 'Defensor'] if tabla == 'casos_penales' else ['Demandante', 'Demandado']
 
-            # Reiniciar juicio
             if reiniciar == 'true':
                 if juicio:
-                    print(f"Reiniciando juicio para {tabla}/{caso_id}")
-                    cursor.execute("DELETE FROM juicios WHERE tabla = ? AND caso_id = ?", (tabla, caso_id))
+                    print(f"Reiniciando juicio ID {juicio[0]} para {tabla}/{caso_id}")
+                    cursor.execute("DELETE FROM juicios WHERE id = ?", (juicio[0],))
                     conn.commit()
                     flash("Juicio reiniciado con éxito")
                 return redirect(url_for('caso_multi', tabla=tabla, caso_id=caso_id))
 
-            # Elegir rol y crear juicio
             if rol_seleccionado in valid_roles:
-                if not juicio:
-                    print(f"Creando nuevo juicio con rol {rol_seleccionado}")
+                if not juicio or juicio[3] == 'completado':
+                    print(f"Creando o reiniciando juicio con rol {rol_seleccionado}")
                     cursor.execute("INSERT INTO juicios (tabla, caso_id, fiscal_id, defensor_id, estado) VALUES (?, ?, ?, ?, ?)",
                                    (tabla, caso_id, session['user_id'] if rol_seleccionado in ['Fiscal', 'Demandante'] else None,
                                     session['user_id'] if rol_seleccionado in ['Defensor', 'Demandado'] else None, 'pendiente'))
                     conn.commit()
                     cursor.execute("SELECT id, fiscal_id, defensor_id, estado, fiscal_alegato, defensor_alegato, fiscal_puntos, defensor_puntos, ganador_id FROM juicios WHERE tabla = ? AND caso_id = ?", (tabla, caso_id))
                     juicio = cursor.fetchone()
-                    print(f"Juicio creado: {juicio}")
+                    print(f"Juicio tras asignar rol: {juicio}")
                 elif juicio[3] == 'pendiente':
                     juicio_id, fiscal_id, defensor_id = juicio[0], juicio[1], juicio[2]
                     if rol_seleccionado in ['Fiscal', 'Demandante'] and not fiscal_id:
@@ -527,21 +533,17 @@ def caso_multi(tabla, caso_id):
                     else:
                         flash("Rol ya ocupado")
                         return redirect(url_for('caso_multi', tabla=tabla, caso_id=caso_id))
-                else:
-                    flash("Juicio completado, reinicia para empezar de nuevo")
-                    return redirect(url_for('caso_multi', tabla=tabla, caso_id=caso_id))
                 rol = rol_seleccionado
                 return redirect(url_for('caso_multi', tabla=tabla, caso_id=caso_id))
 
-            # Enviar alegato
-            elif argumento and juicio and juicio[3] == 'pendiente':
+            if argumento and juicio and juicio[3] == 'pendiente':
                 juicio_id, fiscal_id, defensor_id = juicio[0], juicio[1], juicio[2]
                 if fiscal_id and defensor_id:
-                    if session['user_id'] == fiscal_id and not juicio[4]:  # fiscal_alegato
+                    if session['user_id'] == fiscal_id and not juicio[4]:
                         cursor.execute("UPDATE juicios SET fiscal_alegato = ? WHERE id = ?", (argumento, juicio_id))
                         conn.commit()
                         flash("Alegato de fiscal enviado")
-                    elif session['user_id'] == defensor_id and not juicio[5]:  # defensor_alegato
+                    elif session['user_id'] == defensor_id and not juicio[5]:
                         cursor.execute("UPDATE juicios SET defensor_alegato = ? WHERE id = ?", (argumento, juicio_id))
                         conn.commit()
                         flash("Alegato de defensor enviado")
@@ -549,7 +551,6 @@ def caso_multi(tabla, caso_id):
                         flash("Ya enviaste tu alegato o no eres parte")
                         return redirect(url_for('caso_multi', tabla=tabla, caso_id=caso_id))
 
-                    # Evaluar si ambos alegatos están
                     cursor.execute("SELECT fiscal_alegato, defensor_alegato FROM juicios WHERE id = ?", (juicio_id,))
                     fiscal_alegato, defensor_alegato = cursor.fetchone()
                     if fiscal_alegato and defensor_alegato:
