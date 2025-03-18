@@ -408,7 +408,7 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
     )
     return puntaje, mensaje
 
-@app.route('/casos_multi/<tabla>/<int:caso_id>', methods=['GET', 'POST'])
+@app.route('/caso_multi/<tabla>/<int:caso_id>', methods=['GET', 'POST'])
 @login_required
 def caso_multi(tabla, caso_id):
     user_info = get_user_info(session['user_id'])
@@ -439,6 +439,10 @@ def caso_multi(tabla, caso_id):
         cursor.execute("SELECT id, fiscal_id, defensor_id, estado, fiscal_alegato, defensor_alegato, fiscal_puntos, defensor_puntos, ganador_id FROM juicios WHERE tabla = ? AND caso_id = ?", (tabla, caso_id))
         juicio = cursor.fetchone()
         print(f"Juicio desde DB: {juicio}")
+
+        # Definir rol1 y rol2 según tabla
+        rol1 = "Fiscal" if tabla == 'casos_penales' else "Demandante"
+        rol2 = "Defensor" if tabla == 'casos_penales' else "Demandado"
 
         # Variables pa’ renderizar
         rol = None
