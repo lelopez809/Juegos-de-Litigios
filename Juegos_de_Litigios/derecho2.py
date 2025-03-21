@@ -5,6 +5,7 @@ import random
 import string
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash, send_file
 from flask_wtf import CSRFProtect
+from flask_wtf.csrf import generate_csrf
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import nltk
@@ -382,7 +383,7 @@ csrf = CSRFProtect(app)
 
 @app.context_processor
 def inject_csrf_token():
-    return dict(csrf_token=csrf.generate_csrf)
+    return dict(csrf_token=generate_csrf)
 
 # Rutas
 @app.route('/')
