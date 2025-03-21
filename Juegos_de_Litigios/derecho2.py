@@ -987,6 +987,11 @@ def estado_juicio(tabla, caso_id):
     except sqlite3.Error as e:
         return jsonify({'error': f'Error en la base de datos: {e}'}), 500
 
+@app.route('/download_db')
+@admin_required
+def download_db():
+    return send_file(DB_PATH, as_attachment=True, download_name='casos.db')
+
 if __name__ == '__main__':
     print("Inicializando base de datos...")
     init_db()
