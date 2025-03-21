@@ -409,6 +409,10 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
     )
     return puntaje, mensaje
 
+@app.context_processor
+def inject_csrf_token():
+    return dict(csrf_token=csrf.generate_csrf)
+
 @app.route('/caso_multi/<tabla>/<int:caso_id>', methods=['GET', 'POST'])
 @login_required
 def caso_multi(tabla, caso_id):
@@ -1010,7 +1014,7 @@ def upload_db():
         except Exception as e:
             flash(f"Error al subir la base de datos: {str(e)}")
         return redirect(url_for('upload_db'))
-    return render_template('upload_db.html')
+      return render_template('upload_db.html', csrf_token=csrf.generate_csrf)
 
 if __name__ == '__main__':
     print("Inicializando base de datos...")
