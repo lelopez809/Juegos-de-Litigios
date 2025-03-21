@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash, send_file
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 import smtplib
@@ -11,6 +11,7 @@ from werkzeug.utils import secure_filename
 import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.corpus import stopwords
+from flask_wtf import CSRFProtect
 
 # Configurar la ruta de los datos de NLTK en Render
 nltk_data_dir = os.path.join(os.path.dirname(__file__), 'nltk_data')
