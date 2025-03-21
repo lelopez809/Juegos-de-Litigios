@@ -8,6 +8,7 @@
                 <h1 class="mb-4 fw-bold" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">Bienvenido al Juego de Litigios</h1>
                 <p class="lead mb-4">¡Ingresa y demuestra tus habilidades legales!</p>
                 <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <input type="text" name="username" class="form-control form-control-lg rounded-pill" placeholder="Usuario" required>
                     </div>
