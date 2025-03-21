@@ -110,6 +110,7 @@
                         <i class="fas fa-pen-alt me-2"></i>Escribe tu Alegato
                     </h3>
                     <form method="POST" id="alegatoForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="rol" value="{{ rol }}">
                         <div class="mb-3">
                             <label for="argumento" class="form-label fw-bold text-dark fs-6">Alegato</label>
