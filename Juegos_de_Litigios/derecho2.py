@@ -993,6 +993,25 @@ def estado_juicio(tabla, caso_id):
 def download_db():
     return send_file(DB_PATH, as_attachment=True, download_name='casos.db')
 
+@app.route('/upload_db', methods=['GET', 'POST'])
+@admin_required
+def upload_db():
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash("No se seleccionó ningún archivo.")
+            return redirect(url_for('upload_db'))
+        file = request.files['file']
+        if file.filename != 'casos.db':
+            flash("El archivo debe llamarse 'casos.db'.")
+            return redirect(url_for('upload_db'))
+        try:
+            file.save(DB_PATH)
+            flash("Base de datos subida exitosamente.")
+        except Exception as e:
+            flash(f"Error al subir la base de datos: {str(e)}")
+        return redirect(url_for('upload_db'))
+    return render_template('upload_db.html')
+
 if __name__ == '__main__':
     print("Inicializando base de datos...")
     init_db()
