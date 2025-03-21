@@ -17,7 +17,7 @@
         {% endif %}
     {% endwith %}
     <form method="POST" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label for="file">Selecciona el archivo casos.db:</label>
         <input type="file" name="file" id="file" required>
         <button type="submit">Subir</button>
