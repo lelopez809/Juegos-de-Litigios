@@ -29,7 +29,12 @@ except LookupError:
 
 # Inicialización de la app
 app = Flask(__name__, template_folder='templates')
-app.secret_key = os.getenv("SECRET_KEY", "Diosesamor")
+
+# Configuración de la SECRET_KEY
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("No SECRET_KEY set in environment. Please define it in Render's Environment Variables.")
+app.config['SECRET_KEY'] = SECRET_KEY
 
 # Configuración de la base de datos y carpeta de subidas
 DB_PATH = "/data/casos.db"
