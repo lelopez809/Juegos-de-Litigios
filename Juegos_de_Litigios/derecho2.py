@@ -228,28 +228,61 @@ def get_user_info(user_id):
     except sqlite3.Error as e:
         print(f"Error al obtener información del usuario: {e}")
         return None
-
 def evaluar_alegato(alegato, caso, rol="Jugador"):
-    stop_words = set(stopwords.words('spanish'))
-    palabras = word_tokenize(alegato)
-    alegato_limpio = ' '.join([palabra for palabra in palabras if palabra.lower() not in stop_words])
-    
-    oraciones = sent_tokenize(alegato_limpio)
+    # Limitar el tamaño del alegato
+    if len(alegato) > 5000:
+        alegato = alegato[:5000]
+
+    # Validar la estructura del caso
+    if not isinstance(caso.get('pruebas'), dict) or not isinstance(caso.get('testigos'), dict):
+        return 0, "Error: Estructura de caso inválida."
+
+    # Procesar el alegato con NLTK desde el inicio
+    try:
+        stop_words = set(stopwords.words('spanish'))
+        alegato_lower = alegato.lower()
+        tokens = word_tokenize(alegato_lower)
+        tokens_sin_stopwords = [token for token in tokens if token not in stop_words]
+        alegato_limpio = ' '.join(tokens_sin_stopwords)
+        oraciones = sent_tokenize(alegato_limpio)
+    except Exception as e:
+        return 0, f"Error al procesar el alegato: {str(e)}"
+
+    # Chequeo de contenido mínimo usando NLTK
+    if len(tokens_sin_stopwords) < 5:  # Mínimo 5 palabras significativas (sin stopwords)
+        return 0, (
+            "Puntuación: 0/100 (0%)\n"
+            f"Rol: {rol}\n"
+            f"Dificultad: {caso['dificultad']}/10 ({'Fácil' if caso['dificultad'] <= 3 else 'Medio' if caso['dificultad'] <= 7 else 'Difícil'})\n"
+            "\nPuntos que fallaste:\n"
+            "Tu alegato es demasiado corto o no tiene contenido relevante.\n"
+            "\nCómo mejorar:\n"
+            "Escribe un alegato más detallado (mínimo 5 palabras significativas).\n"
+            "Menciona pruebas, testigos, la ley y el procedimiento del caso.\n"
+            "Usa argumentos lógicos con palabras como 'porque' o 'según'.\n"
+            "\nConsejos de ética en audiencias:\n"
+            "Dirígete al magistrado o magistrada con respeto, usando 'Honorable Magistrado/a'.\n"
+            "Mantén la compostura en el salón, sin interrumpir ni alzar la voz.\n"
+            "Presenta tus argumentos con honestidad, sin alterar los hechos pa’ beneficiar a tu cliente.\n"
+            f"{'Defiende a tu cliente con ética, evitando acusaciones falsas contra otros.' if rol in ['Defensor', 'Demandado'] else 'Busca justicia con integridad, sin exagerar cargos pa’ presionar.'}"
+        )
+
     num_oraciones = len(oraciones)
-    tokens = word_tokenize(alegato_limpio.lower())
     dificultad = caso['dificultad']
     max_puntaje = 100
 
     puntaje = 0
-    puntaje_base = min(num_oraciones * 5, 20)
+    # Reducir el puntaje base
+    puntaje_base = min(num_oraciones * 3, 15)  # 3 puntos por oración, máximo 15
     puntaje += puntaje_base
 
+    # Reducir el bonus por rol
     if rol in ["Fiscal", "Demandante"]:
-        bonus_rol = 15 if dificultad > 5 else 10
+        bonus_rol = 10 if dificultad > 5 else 5
     elif rol in ["Defensor", "Demandado"]:
-        bonus_rol = 20 if dificultad > 7 else 15
+        bonus_rol = 12 if dificultad > 7 else 8
     else:
-        bonus_rol = 5
+        bonus_rol = 3
     puntaje += bonus_rol
 
     total_pruebas = len(caso['pruebas'])
@@ -258,12 +291,16 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
     testigos_mencionados = 0
     argumentos_logicos = 0
 
-    alegato_lower = alegato.lower()
+    # Comparar pruebas y testigos usando NLTK, pero de forma más precisa
     for prueba, detalle in caso['pruebas'].items():
         prueba_lower = prueba.lower()
         detalle_lower = str(detalle).lower()
-        if (prueba_lower in alegato_lower or detalle_lower in alegato_lower or 
-            any(token in prueba_lower or token in detalle_lower for token in tokens)):
+        prueba_tokens = word_tokenize(prueba_lower)
+        detalle_tokens = word_tokenize(detalle_lower)
+        # Contar solo si hay una coincidencia significativa (mínimo 2 tokens coincidentes)
+        coincidencias_prueba = sum(1 for token in tokens_sin_stopwords if token in prueba_tokens)
+        coincidencias_detalle = sum(1 for token in tokens_sin_stopwords if token in detalle_tokens)
+        if coincidencias_prueba >= 2 or coincidencias_detalle >= 2 or prueba_lower in alegato_limpio or detalle_lower in alegato_limpio:
             puntaje += 10
             pruebas_mencionadas += 1
             if any("porque" in oracion or "prueba" in oracion for oracion in sent_tokenize(alegato_lower) if prueba_lower in oracion):
@@ -273,8 +310,12 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
     for testigo, detalle in caso['testigos'].items():
         testigo_lower = testigo.lower()
         detalle_lower = str(detalle).lower()
-        if (testigo_lower in alegato_lower or detalle_lower in alegato_lower or 
-            any(token in testigo_lower or token in detalle_lower for token in tokens)):
+        testigo_tokens = word_tokenize(testigo_lower)
+        detalle_tokens = word_tokenize(detalle_lower)
+        # Contar solo si hay una coincidencia significativa (mínimo 2 tokens coincidentes)
+        coincidencias_testigo = sum(1 for token in tokens_sin_stopwords if token in testigo_tokens)
+        coincidencias_detalle = sum(1 for token in tokens_sin_stopwords if token in detalle_tokens)
+        if coincidencias_testigo >= 2 or coincidencias_detalle >= 2 or testigo_lower in alegato_limpio or detalle_lower in alegato_limpio:
             puntaje += 8
             testigos_mencionados += 1
             if any("según" in oracion or "declara" in oracion for oracion in sent_tokenize(alegato_lower) if testigo_lower in oracion):
@@ -303,10 +344,10 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
         puntaje -= 4
     penalizacion_oraciones = len(oraciones) < 3
     if penalizacion_oraciones:
-        puntaje -= 3
+        puntaje -= 5  # Aumentar la penalización
 
     frecuencias = {}
-    for token in tokens:
+    for token in tokens_sin_stopwords:  # Usar tokens sin stopwords para la variedad
         frecuencias[token] = frecuencias.get(token, 0) + 1
     max_repeticion = max(frecuencias.values()) if frecuencias else 0
     num_palabras_unicas = len(frecuencias)
@@ -328,7 +369,7 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
     
     if pruebas_mencionadas < total_pruebas:
         fallos.append(f"No mencionaste {total_pruebas - pruebas_mencionadas} pruebas.")
-        mejoras.append("Incluye más pruebas específicas como 'ventana forzada' o 'bolsa sospechosa'.")
+        mejoras.append("Incluye más pruebas específicas del caso.")
     if penalizacion_pruebas:
         fallos.append("Mencionaste menos de la mitad de las pruebas (-5 puntos).")
     
@@ -340,24 +381,24 @@ def evaluar_alegato(alegato, caso, rol="Jugador"):
     
     if not ley_mencionada:
         fallos.append("No mencionaste la ley aplicable.")
-        mejoras.append("Cita la ley, ej: 'robo agravado'.")
+        mejoras.append(f"Cita la ley del caso, por ejemplo: '{caso['ley']}'.")
     
     if not proc_mencionado:
         fallos.append("No mencionaste el procedimiento.")
-        mejoras.append("Menciona el procedimiento, ej: 'tribunal de primera instancia'.")
+        mejoras.append(f"Menciona el procedimiento, por ejemplo: '{caso['procedimiento']}'.")
     
     if penalizacion_oraciones:
-        fallos.append(f"Tu alegato tiene solo {num_oraciones} oración(es) (-3 puntos).")
-        mejoras.append("Escribe al menos 3 oraciones pa’ más puntos.")
+        fallos.append(f"Tu alegato tiene solo {num_oraciones} oración(es) (-5 puntos).")
+        mejoras.append("Escribe al menos 3 oraciones para desarrollar mejor tu argumento.")
     
     if argumentos_logicos < max(total_pruebas, total_testigos):
-        mejoras.append("Usa más 'porque', 'según' o 'declara' pa’ argumentos lógicos.")
+        mejoras.append("Usa más 'porque', 'según' o 'declara' para construir argumentos lógicos.")
     
     if max_repeticion > 5:
         fallos.append("Repetiste una palabra más de 5 veces (-5 puntos).")
-        mejoras.append("Varía tu vocabulario.")
+        mejoras.append("Varía tu vocabulario para que tu alegato sea más claro.")
     elif num_palabras_unicas <= 10:
-        mejoras.append("Usa más de 10 palabras distintas pa’ un bonus (+5).")
+        mejoras.append("Usa más de 10 palabras distintas para obtener un bonus (+5).")
 
     consejos_eticos = [
         "Dirígete al magistrado o magistrada con respeto, usando 'Honorable Magistrado/a'.",
