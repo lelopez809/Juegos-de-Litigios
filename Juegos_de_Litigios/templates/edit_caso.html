@@ -1,3 +1,4 @@
+<xaiArtifact artifact_id="ce315529-016b-4f98-9257-f619845b0fb1" artifact_version_id="55e5722c-0972-43b4-881b-bc0834c87b80" title="edit_caso.html" contentType="text/html">
 {% extends "base.html" %}
 {% block title %}Editar Caso - {{ caso.titulo }}{% endblock %}
 {% block content %}
@@ -10,7 +11,6 @@
     </div>
     <div class="position-absolute top-0 start-0 w-100 h-100 opacity-10" style="background: url('https://www.transparenttextures.com/patterns/wood-pattern.png');"></div>
 </header>
-
 <div class="container my-3">
     <div class="row justify-content-center">
         <div class="col-md-8">
@@ -26,7 +26,8 @@
                     </div>
                     {% endif %}
                     {% endwith %}
-                    <form method="POST">
+                    <form method="POST" action="{{ url_for('edit_caso', tabla='casos_penales', id=caso.id) }}">
+                        {{ form.hidden_tag() }}
                         <input type="hidden" name="tabla" value="{{ tabla }}">
                         <div class="mb-3">
                             <label for="titulo" class="form-label fw-bold text-dark fs-6">Título del Caso</label>
@@ -74,10 +75,12 @@
         </a>
     </div>
 </div>
-
 <style>
     .btn-outline-secondary:hover { background-color: #003087; color: white; }
     .btn-primary:hover { background-color: #a50e1e !important; }
     .card-body { padding: 1rem !important; }
 </style>
+
 {% endblock %}
+</xaiArtifact>
+
