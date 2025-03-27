@@ -27,7 +27,7 @@
                     {% endif %}
                     {% endwith %}
                     <form method="POST" action="{{ url_for('edit_caso', tabla='casos_penales', caso_id=caso.id) }}">
-                        {{ form.hidden_tag() }}
+                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="tabla" value="{{ tabla }}">
                         <div class="mb-3">
                             <label for="titulo" class="form-label fw-bold text-dark fs-6">Título del Caso</label>
