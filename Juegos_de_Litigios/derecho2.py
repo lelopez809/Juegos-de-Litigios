@@ -11,6 +11,28 @@ from werkzeug.utils import secure_filename
 import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.corpus import stopwords
+from wtforms import StringField, TextAreaField, SelectField, IntegerField, SubmitField
+from wtforms.validators import DataRequired
+from flask_wtf import FlaskForm
+
+class AddCasoForm(FlaskForm):
+    tabla = SelectField('Tipo de Caso', choices=[
+        ('casos_penales', 'Penal'),
+        ('casos_civil', 'Civil'),
+        ('casos_tierras', 'Tierras'),
+        ('casos_administrativo', 'Administrativo'),
+        ('casos_familia', 'Familia'),
+        ('casos_ninos', 'Niños')
+    ], validators=[DataRequired()])
+    titulo = StringField('Título del Caso', validators=[DataRequired()])
+    hechos = TextAreaField('Hechos', validators=[DataRequired()])
+    pruebas = TextAreaField('Pruebas (en formato JSON o clave:valor)')
+    testigos = TextAreaField('Testigos (en formato JSON o clave:valor)')
+    defensa = TextAreaField('Defensa')
+    ley = StringField('Ley Aplicable')
+    procedimiento = TextAreaField('Procedimiento')
+    dificultad = IntegerField('Dificultad (0-10)', default=0)
+    submit = SubmitField('Agregar Caso')
 
 # Configuración de NLTK
 nltk_data_dir = os.path.join(os.path.dirname(__file__), 'nltk_data')
