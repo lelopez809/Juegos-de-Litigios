@@ -1,6 +1,20 @@
+<xaiArtifact artifact_id="f8503116-111e-4e67-bb6f-300ceedfbccb" artifact_version_id="92115251-d387-46ab-80c3-64398bd0fe94" title="Updated login.html with Maintenance Message" contentType="text/html">
 {% extends "base.html" %}
 {% block title %}Iniciar Sesión{% endblock %}
 {% block content %}
+<div class="container my-4">
+    <div class="alert alert-warning text-center shadow-lg animate__animated animate__bounceIn" style="background: linear-gradient(135deg, #ffcc00, #ff9900); color: #003087; border: none;">
+        <h2 class="fw-bold mb-3" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.3);">
+            <i class="fas fa-exclamation-triangle me-2"></i> Aviso de Mantenimiento
+        </h2>
+        <p class="fs-4 mb-2">
+            La aplicación estará en mantenimiento desde el <strong>viernes a las 12:00</strong> para habilitar las demás materias y agregar más casos.
+        </p>
+        <p class="fs-5">
+            Se estarán agregando los casos <strong>Anti Pulpo</strong> y otros casos de peso en la sociedad dominicana. ¡Prepárate para nuevos desafíos legales!
+        </p>
+    </div>
+</div>
 <div class="row justify-content-center">
     <div class="col-md-6">
         <div class="card border-0 shadow-lg animate__animated animate__zoomIn" style="background: linear-gradient(135deg, #003087, #CE1126); color: white;">
@@ -18,7 +32,8 @@
                     <button type="submit" class="btn btn-light btn-lg rounded-pill w-100 animate__animated animate__pulse animate__infinite">Iniciar Sesión</button>
                 </form>
                 <p class="mt-3">
-                    ¿No tienes cuenta? <a href="{{ url_for('register') }}" class="text-white fw-bold">Regístrate</a><br>
+                    ¿No tienes cuenta? <a href="{{ url_for('register') }}" class="text-white fw-bold">Regístrate</a>
+
                     ¿Olvidaste tu contraseña? <span class="text-white fw-bold">Contacta al administrador</span>
                 </p>
             </div>
@@ -26,3 +41,5 @@
     </div>
 </div>
 {% endblock %}
+</xaiArtifact>
+
