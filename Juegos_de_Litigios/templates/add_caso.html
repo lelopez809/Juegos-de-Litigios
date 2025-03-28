@@ -1,3 +1,4 @@
+<xaiArtifact artifact_id="fe863008-d9d2-4ceb-99a8-327b7384f5a6" artifact_version_id="a1b0bd30-5337-4508-99a8-16f16a97b1af" title="Updated add_caso.html with CSRF" contentType="text/html">
 {% extends "base.html" %}
 {% block title %}Agregar Caso{% endblock %}
 {% block content %}
@@ -10,7 +11,6 @@
     </div>
     <div class="position-absolute top-0 start-0 w-100 h-100 opacity-10" style="background: url('https://www.transparenttextures.com/patterns/wood-pattern.png');"></div>
 </header>
-
 <div class="container my-3">
     <div class="row justify-content-center">
         <div class="col-md-8">
@@ -27,48 +27,42 @@
                     {% endif %}
                     {% endwith %}
                     <form method="POST">
+                        {{ form.hidden_tag() }}
                         <div class="mb-3">
                             <label for="tabla" class="form-label fw-bold text-dark fs-6">Tipo de Caso</label>
-                            <select name="tabla" id="tabla" class="form-select shadow-sm" required>
-                                <option value="casos_penales">Penal</option>
-                                <option value="casos_civil">Civil</option>
-                                <option value="casos_tierras">Tierras</option>
-                                <option value="casos_administrativo">Administrativo</option>
-                                <option value="casos_familia">Familia</option>
-                                <option value="casos_ninos">Niños</option>
-                            </select>
+                            {{ form.tabla(class="form-select shadow-sm", required=True) }}
                         </div>
                         <div class="mb-3">
                             <label for="titulo" class="form-label fw-bold text-dark fs-6">Título del Caso</label>
-                            <input type="text" name="titulo" id="titulo" class="form-control shadow-sm" required placeholder="Ejemplo: Robo en Tienda con Testigos">
+                            {{ form.titulo(class="form-control shadow-sm", required=True, placeholder="Ejemplo: Robo en Tienda con Testigos") }}
                         </div>
                         <div class="mb-3">
                             <label for="hechos" class="form-label fw-bold text-dark fs-6">Hechos</label>
-                            <textarea name="hechos" id="hechos" class="form-control shadow-sm" rows="3" required placeholder="Describe los hechos del caso..."></textarea>
+                            {{ form.hechos(class="form-control shadow-sm", rows="3", required=True, placeholder="Describe los hechos del caso...") }}
                         </div>
                         <div class="mb-3">
-                            <label for="pruebas" class="form-label fw-bold text-dark fs-6">Pruebas (en formato JSON)</label>
-                            <textarea name="pruebas" id="pruebas" class="form-control shadow-sm" rows="3" placeholder='Ejemplo: {"video_seguridad": "Grabación que muestra al sospechoso"}'></textarea>
+                            <label for="pruebas" class="form-label fw-bold text-dark fs-6">Pruebas (en formato JSON o clave:valor)</label>
+                            {{ form.pruebas(class="form-control shadow-sm", rows="3", placeholder='Ejemplo JSON: {"video_seguridad": "Grabación que muestra al sospechoso"} o clave:valor: video_seguridad:Grabación que muestra al sospechoso') }}
                         </div>
                         <div class="mb-3">
-                            <label for="testigos" class="form-label fw-bold text-dark fs-6">Testigos (en formato JSON)</label>
-                            <textarea name="testigos" id="testigos" class="form-control shadow-sm" rows="3" placeholder='Ejemplo: {"empleado": "Juan Pérez, empleado de la tienda"}'></textarea>
+                            <label for="testigos" class="form-label fw-bold text-dark fs-6">Testigos (en formato JSON o clave:valor)</label>
+                            {{ form.testigos(class="form-control shadow-sm", rows="3", placeholder='Ejemplo JSON: {"empleado": "Juan Pérez, empleado de la tienda"} o clave:valor: empleado:Juan Pérez, empleado de la tienda') }}
                         </div>
                         <div class="mb-3">
                             <label for="defensa" class="form-label fw-bold text-dark fs-6">Defensa</label>
-                            <textarea name="defensa" id="defensa" class="form-control shadow-sm" rows="3" placeholder="Argumentos de la defensa..."></textarea>
+                            {{ form.defensa(class="form-control shadow-sm", rows="3", placeholder="Argumentos de la defensa...") }}
                         </div>
                         <div class="mb-3">
                             <label for="ley" class="form-label fw-bold text-dark fs-6">Ley Aplicable</label>
-                            <input type="text" name="ley" id="ley" class="form-control shadow-sm" placeholder="Ejemplo: Ley 631-16 sobre robo">
+                            {{ form.ley(class="form-control shadow-sm", placeholder="Ejemplo: Ley 631-16 sobre robo") }}
                         </div>
                         <div class="mb-3">
                             <label for="procedimiento" class="form-label fw-bold text-dark fs-6">Procedimiento</label>
-                            <textarea name="procedimiento" id="procedimiento" class="form-control shadow-sm" rows="3" placeholder="Describe el procedimiento legal..."></textarea>
+                            {{ form.procedimiento(class="form-control shadow-sm", rows="3", placeholder="Describe el procedimiento legal...") }}
                         </div>
                         <div class="mb-3">
                             <label for="dificultad" class="form-label fw-bold text-dark fs-6">Dificultad (0-10)</label>
-                            <input type="number" name="dificultad" id="dificultad" class="form-control shadow-sm" min="0" max="10" value="0">
+                            {{ form.dificultad(class="form-control shadow-sm", min="0", max="10", value="0") }}
                         </div>
                         <button type="submit" class="btn btn-primary w-100 shadow-sm" style="background: #CE1126; border: none; transition: background 0.3s;">
                             <i class="fas fa-save me-2"></i>Agregar Caso
@@ -84,10 +78,12 @@
         </a>
     </div>
 </div>
-
 <style>
     .btn-outline-secondary:hover { background-color: #003087; color: white; }
     .btn-primary:hover { background-color: #a50e1e !important; }
     .card-body { padding: 1rem !important; }
 </style>
 {% endblock %}
+</xaiArtifact>
+
+
