@@ -828,30 +828,53 @@ def admin():
     user_info = get_user_info(session['user_id'])
     if not user_info:
         return redirect(url_for('login'))
-    if request.method == 'POST':
-        tabla = request.form.get('tabla')
-        titulo = request.form.get('titulo')
-        hechos = request.form.get('hechos')
-        pruebas = request.form.get('pruebas')
-        testigos = request.form.get('testigos')
-        defensa = request.form.get('defensa')
-        ley = request.form.get('ley')
-        procedimiento = request.form.get('procedimiento')
-        dificultad = int(request.form.get('dificultad', 0))
+    
+    form = AddCasoForm()  # Crear el formulario
+    
+    if form.validate_on_submit():  # Si el formulario se envía y es válido
+        tabla = form.tabla.data
+        titulo = form.titulo.data
+        hechos = form.hechos.data
+        pruebas = form.pruebas.data
+        testigos = form.testigos.data
+        defensa = form.defensa.data
+        ley = form.ley.data
+        procedimiento = form.procedimiento.data
+        dificultad = form.dificultad.data
+        
         try:
-            pruebas_json = json.dumps(dict(prueba.split(':') for prueba in pruebas.split(',') if ':' in prueba))
-            testigos_json = json.dumps(dict(testigo.split(':') for testigo in testigos.split(',') if ':' in testigo))
+            # Intentar parsear pruebas y testigos como JSON directamente
+            try:
+                pruebas_dict = json.loads(pruebas) if pruebas else {}
+                testigos_dict = json.loads(testigos) if testigos else {}
+            except json.JSONDecodeError:
+                # Si falla el parseo como JSON, intentar el formato clave:valor
+                try:
+                    pruebas_dict = dict(prueba.split(':') for prueba in pruebas.split(',') if ':' in prueba) if pruebas else {}
+                    testigos_dict = dict(testigo.split(':') for testigo in testigos.split(',') if ':' in testigo) if testigos else {}
+                except Exception as e:
+                    flash(f"Error en el formato de pruebas o testigos: {e}")
+                    return render_template('add_caso.html', user_info=user_info, form=form)
+            
+            # Convertir los diccionarios a JSON para guardar en la base de datos
+            pruebas_json = json.dumps(pruebas_dict)
+            testigos_json = json.dumps(testigos_dict)
+            
             with sqlite3.connect(DB_PATH) as conn:
                 cursor = conn.cursor()
-                cursor.execute(f"INSERT INTO {tabla} (titulo, hechos, pruebas, testigos, defensa, ley, procedimiento, dificultad) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                               (titulo, hechos, pruebas_json, testigos_json, defensa, ley, procedimiento, dificultad))
+                cursor.execute(
+                    f"INSERT INTO {tabla} (titulo, hechos, pruebas, testigos, defensa, ley, procedimiento, dificultad) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (titulo, hechos, pruebas_json, testigos_json, defensa, ley, procedimiento, dificultad)
+                )
                 conn.commit()
                 flash("Caso añadido exitosamente!")
         except sqlite3.Error as e:
             flash(f"Error en la base de datos: {e}")
         except Exception as e:
             flash(f"Error al procesar los datos: {e}")
-    return render_template('add_caso.html', user_info=user_info)
+    
+    # Renderizar la plantilla, pasando tanto user_info como form
+    return render_template('add_caso.html', user_info=user_info, form=form)
 
 @app.route('/edit_caso/<string:tabla>/<int:caso_id>', methods=['GET', 'POST'])
 @admin_required
